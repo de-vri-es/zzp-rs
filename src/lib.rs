@@ -30,7 +30,7 @@ impl<'a> Transaction<'a> {
 	pub fn parse_from_str(data: &'a str) -> Result<Vec<Self>, ParseError<'a>> {
 		let mut lines = data.lines();
 		let mut output = Vec::new();
-		output.reserve(lines.size_hint().0 / 4);
+		output.reserve((lines.size_hint().0 + 3) / 4);
 
 		while let Some(transaction) = Self::parse_from_lines(&mut lines)? {
 			output.push(transaction);
