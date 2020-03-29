@@ -1,15 +1,18 @@
+mod date;
+use date::Date;
+
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Transaction<'a> {
 	date: Date,
 	description: &'a str,
+	tags: Vec<Tag<'a>>,
 	mutations: Vec<Mutation<'a>>,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub struct Date {
-	year: i32,
-	month: i32,
-	day: i32,
+pub struct Tag<'a> {
+	label: &'a str,
+	value: &'a str,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -40,9 +43,16 @@ impl<'a> Transaction<'a> {
 	}
 
 	pub fn parse_from_lines(lines: &mut std::str::Lines<'a>) -> Result<Option<Self>, ParseError<'a>> {
-		let header = match lines.next() {
-			Some(x) => x,
-			None => return Ok(None),
+		let header = loop {
+			let line = match lines.next() {
+				Some(x) => x.trim(),
+				None => return Ok(None),
+			};
+
+			// Skip comments and empty lines.
+			if !line.starts_with('#')  && !line.is_empty() {
+				break line;
+			}
 		};
 
 		// Split header in date and description.
@@ -57,42 +67,46 @@ impl<'a> Transaction<'a> {
 		}
 
 		// Parse the date.
-		let date = Date::parse_from_str(date).map_err(|e| e.for_token(date))?;
+		let date = Date::parse_from_str(date).map_err(|_| InvalidTransactionHeaderDetails::InvalidDate.for_token(date))?;
 
-		// Parse mutation till we encounter an empty line.
+		// Parse tags and mutations until there are none left.
+		let mut tags = Vec::new();
 		let mut mutations = Vec::new();
+
 		while let Some(line) = lines.next() {
 			let line = line.trim();
+			// Stop on empty line.
 			if line.is_empty() {
 				break;
+			// Ignore comments.
+			} else if line.starts_with('#') {
+				continue;
+			// Parse mutations.
+			} else if line.starts_with('+') || line.starts_with('-') {
+				mutations.push(Mutation::parse_from_str(line)?);
+			// Treat rest as tags.
+			} else {
+				tags.push(Tag::parse_from_str(line)?);
 			}
-			mutations.push(Mutation::parse_from_str(line)?);
 		}
 
-		Ok(Some(Self { date, description, mutations }))
+		Ok(Some(Self { date, description, tags, mutations }))
 	}
 }
 
-impl Date {
-	pub fn from_parts(year: i32, month: i32, day: i32) -> Result<Self, ()> {
-		if month < 1 || month > 12 {
-			Err(())
-		} else if day < 1 || day > days_in_month(month, is_leap_year(year)) {
-			Err(())
-		} else {
-			Ok(Self { year, month, day })
+impl<'a> Tag<'a> {
+	fn parse_from_str(data: &'a str) -> Result<Self, ParseError<'a>> {
+		let data = data.trim();
+		let (label, value) = partition(data, ':').ok_or(MissingTagSeparator.for_token(data))?;
+		let label = label.trim();
+		let value = value.trim();
+
+		// Check that the label contains only allowed characters.
+		if label.chars().find(|c| !c.is_ascii_alphanumeric() && *c != '-').is_some() {
+			return Err(InvalidLabel.for_token(label).into());
 		}
-	}
 
-	pub fn parse_from_str<'a>(data: &'a str) -> Result<Self, InvalidTransactionHeaderDetails> {
-		let mut components = data.splitn(3, '-')
-			.map(|x| x.parse::<i32>().map_err(|_| InvalidDate));
-
-		let year = components.next().ok_or(InvalidDate)??;
-		let month = components.next().ok_or(InvalidDate)??;
-		let day = components.next().ok_or(InvalidDate)??;
-
-		Self::from_parts(year, month, day).map_err(|_| InvalidDate)
+		Ok(Self { label, value })
 	}
 }
 
@@ -151,6 +165,7 @@ pub struct ParseError<'a> {
 pub enum ParseErrorDetails {
 	InvalidTransactionHeader(InvalidTransactionHeaderDetails),
 	InvalidMutation(InvalidMutationDetails),
+	InvalidTag(InvalidTagDetails),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -161,6 +176,14 @@ pub enum InvalidTransactionHeaderDetails {
 }
 
 use InvalidTransactionHeaderDetails::*;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum InvalidTagDetails {
+	MissingTagSeparator,
+	InvalidLabel,
+}
+
+use InvalidTagDetails::*;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum InvalidMutationDetails {
@@ -177,6 +200,12 @@ impl From<InvalidTransactionHeaderDetails> for ParseErrorDetails {
 	}
 }
 
+impl From<InvalidTagDetails> for ParseErrorDetails {
+	fn from(other: InvalidTagDetails) -> Self {
+		Self::InvalidTag(other)
+	}
+}
+
 impl From<InvalidMutationDetails> for ParseErrorDetails {
 	fn from(other: InvalidMutationDetails) -> Self {
 		Self::InvalidMutation(other)
@@ -184,6 +213,12 @@ impl From<InvalidMutationDetails> for ParseErrorDetails {
 }
 
 impl InvalidTransactionHeaderDetails {
+	fn for_token(self, token: &str) -> ParseError {
+		ParseError { details: self.into(), token }
+	}
+}
+
+impl InvalidTagDetails {
 	fn for_token(self, token: &str) -> ParseError {
 		ParseError { details: self.into(), token }
 	}
@@ -198,33 +233,4 @@ impl InvalidMutationDetails {
 fn partition(data: &str, seperator: char) -> Option<(&str, &str)> {
 	let mut split = data.splitn(2, seperator);
 	Some((split.next()?, split.next()?))
-}
-
-fn is_leap_year(year: i32) -> bool {
-	if year % 400 == 0 {
-		true
-	} else if year % 100 == 0 {
-		false
-	} else {
-		year % 4 == 0
-	}
-}
-
-fn days_in_month(month: i32, leap_year: bool) -> i32 {
-	match month {
-		01 => 31,
-		02 if !leap_year => 28,
-		02 if leap_year => 29,
-		03 => 31,
-		04 => 30,
-		05 => 31,
-		06 => 30,
-		07 => 31,
-		08 => 31,
-		09 => 30,
-		10 => 31,
-		11 => 30,
-		12 => 31,
-		_ => panic!("invalid month: {}", month),
-	}
 }
