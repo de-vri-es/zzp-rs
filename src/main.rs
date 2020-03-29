@@ -13,7 +13,7 @@ struct Options {
 
 fn do_main(options: &Options) -> Result<(), String> {
 	let data = std::fs::read_to_string(&options.file).map_err(|e| format!("failed to read {:?}: {}", options.file, e))?;
-	let transactions = grootboek::Transaction::parse_from_str(&data).map_err(|e| format!("{:?}", e))?;
+	let transactions = grootboek::Transaction::parse_from_str(&data).map_err(|e| format!("{}", e))?;
 	eprintln!("{:#?}", transactions);
 	Ok(())
 }
