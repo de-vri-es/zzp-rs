@@ -28,6 +28,64 @@ impl Date {
 
 		Self::from_parts(year, month, day).map_err(|_| InvalidDate)
 	}
+
+	pub fn is_leap_year(self) -> bool {
+		is_leap_year(self.year)
+	}
+
+	pub fn last_day_of_month(self) -> Self {
+		Self {
+			year: self.year,
+			month: self.month,
+			day: days_in_month(self.month, self.is_leap_year()),
+		}
+	}
+
+	pub fn last_day_of_year(self) -> Self {
+		Self {
+			year: self.year,
+			month: 12,
+			day: 31,
+		}
+	}
+
+	pub fn first_day_next_month(self) -> Self {
+		if self.month == 12 {
+			self.first_day_next_year()
+		} else {
+			Self {
+				year: self.year,
+				month: self.month + 1,
+				day: 1,
+			}
+		}
+	}
+
+	pub fn first_day_next_year(self) -> Self {
+		Self {
+			year: self.year + 1,
+			month: 1,
+			day: 1,
+		}
+	}
+
+	pub fn next_day(self) -> Self {
+		if self.day == days_in_month(self.month, self.is_leap_year()) {
+			self.first_day_next_month()
+		} else {
+			Self {
+				year: self.year,
+				month: self.month,
+				day: self.day + 1,
+			}
+		}
+	}
+}
+
+impl std::fmt::Display for Date {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(f, "{:04}-{:02}-{:02}", self.year, self.month, self.day)
+	}
 }
 
 fn is_leap_year(year: i32) -> bool {
