@@ -7,8 +7,21 @@ impl Hours {
 	pub fn from_minutes(minutes: u32) -> Self {
 		Self { minutes }
 	}
+
 	pub fn from_hours_minutes(hours: u32, minutes: u32) -> Self {
 		Self::from_minutes(hours * 60 + minutes)
+	}
+
+	pub fn total_minutes(self) -> u32 {
+		self.minutes
+	}
+
+	pub fn hours(self) -> u32 {
+		self.minutes / 60
+	}
+
+	pub fn minutes(self) -> u32 {
+		self.minutes % 60
 	}
 
 	pub fn from_str(data: &str) -> Result<Self, HoursParseError> {

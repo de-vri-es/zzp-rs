@@ -99,16 +99,6 @@ pub fn is_leap_year(year: i32) -> bool {
 	year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
 }
 
-#[cfg(test)]
-#[test]
-fn test_is_leap_year() {
-	use assert2::check;
-	check!(is_leap_year(2020) == true);
-	check!(is_leap_year(2021) == false);
-	check!(is_leap_year(1900) == false);
-	check!(is_leap_year(2000) == true);
-}
-
 pub fn days_in_month(year: i32, month: Month) -> u8 {
 	match month {
 		Month::January => 31,
@@ -236,4 +226,39 @@ impl std::fmt::Display for InvalidDayForMonth {
 			self.day,
 		)
 	}
+}
+
+#[cfg(test)]
+mod test {
+	use super::*;
+	use assert2::assert;
+
+	#[test]
+	fn test_make_date() {
+		assert!(let Ok(_) = Date::new(2020, 1, 2));
+		assert!(Date::new(2020, 1, 2).unwrap().year() == 2020);
+		assert!(Date::new(2020, 1, 2).unwrap().month() == Month::January);
+		assert!(Date::new(2020, 1, 2).unwrap().day() == 2);
+
+		assert!(let Ok(_) = Date::new(2020, 2, 29));
+		assert!(let Err(_) = Date::new(2020, 2, 30));
+		assert!(let Ok(_) = Date::new(2019, 2, 28));
+		assert!(let Err(_) = Date::new(2019, 2, 29));
+	}
+
+	#[test]
+	fn test_parse_date() {
+		assert!(let Ok(Date { year: 2020, month: Month::January, day: 2 }) = Date::from_str("2020-01-02"));
+		assert!(let Err(DateParseError::InvalidDateSyntax(_)) = Date::from_str("not-a-date"));
+		assert!(let Err(DateParseError::InvalidDate(_)) = Date::from_str("2019-30-12"));
+	}
+
+	#[test]
+	fn test_is_leap_year() {
+		assert!(is_leap_year(2020) == true);
+		assert!(is_leap_year(2021) == false);
+		assert!(is_leap_year(1900) == false);
+		assert!(is_leap_year(2000) == true);
+	}
+
 }
