@@ -1,6 +1,6 @@
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Date {
-	year: i32,
+	year: i16,
 	month: Month,
 	day: u8,
 }
@@ -23,13 +23,13 @@ pub enum Month {
 }
 
 impl Date {
-	pub fn new(year: i32, month: u8, day: u8) -> Result<Self, InvalidDate> {
+	pub fn new(year: i16, month: u8, day: u8) -> Result<Self, InvalidDate> {
 		let month = Month::new(month)?;
 		InvalidDayForMonth::check(year, month, day)?;
 		Ok(Self { year, month, day })
 	}
 
-	pub fn year(self) -> i32 {
+	pub fn year(self) -> i16 {
 		self.year
 	}
 
@@ -49,7 +49,7 @@ impl Date {
 		let day = fields.next().ok_or(InvalidDateSyntax { data })?;
 
 		// Parse fields as numbers.
-		let year : i32 = year.parse().map_err(|_| InvalidDateSyntax { data })?;
+		let year : i16 = year.parse().map_err(|_| InvalidDateSyntax { data })?;
 		let month : u8 = month.parse().map_err(|_| InvalidDateSyntax { data })?;
 		let day : u8 = day.parse().map_err(|_| InvalidDateSyntax { data })?;
 
@@ -95,11 +95,11 @@ impl std::fmt::Display for Date {
 	}
 }
 
-pub fn is_leap_year(year: i32) -> bool {
+pub fn is_leap_year(year: i16) -> bool {
 	year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
 }
 
-pub fn days_in_month(year: i32, month: Month) -> u8 {
+pub fn days_in_month(year: i16, month: Month) -> u8 {
 	match month {
 		Month::January => 31,
 		Month::Februari => if is_leap_year(year) { 29 } else { 28 },
@@ -140,13 +140,13 @@ pub struct InvalidMonthNumber {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InvalidDayForMonth {
-	year: i32,
+	year: i16,
 	month: Month,
 	day: u8,
 }
 
 impl InvalidDayForMonth {
-	pub fn check(year: i32, month: Month, day: u8) -> Result<(), Self> {
+	pub fn check(year: i16, month: Month, day: u8) -> Result<(), Self> {
 		if day < 1 || day > days_in_month(year, month) {
 			Err(Self { year, month, day })
 		} else {
