@@ -2,11 +2,6 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 use structopt::clap;
 
-pub mod date;
-pub mod hours;
-pub mod parse;
-pub mod entry;
-
 #[derive(StructOpt)]
 #[structopt(setting = clap::AppSettings::DeriveDisplayOrder)]
 #[structopt(setting = clap::AppSettings::UnifiedHelpMessage)]
@@ -32,7 +27,7 @@ fn do_main(options: Options) -> Result<(), String> {
 			continue;
 		}
 
-		let entry = entry::Entry::from_str(line).map_err(|e| format!("parse error on line {}: {}", i, e))?;
+		let entry = uurlog::Entry::from_str(line).map_err(|e| format!("parse error on line {}: {}", i, e))?;
 		println!("{:?}", entry);
 	}
 
