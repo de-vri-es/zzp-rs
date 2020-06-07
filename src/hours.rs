@@ -29,12 +29,12 @@ impl Hours {
 		let remaining = data;
 
 		if data.is_empty() {
-			return Err(HoursParseError { data });
+			return Err(HoursParseError::new(data));
 		}
 
 		// Parse hours (must precede minutes).
 		let remaining = if let Some((hours, rest)) = partition(remaining, 'h') {
-			let hours : u32 = hours.parse().map_err(|_| HoursParseError { data })?;
+			let hours : u32 = hours.parse().map_err(|_| HoursParseError::new(data))?;
 			total += hours * 60;
 			rest
 		} else {
@@ -43,7 +43,7 @@ impl Hours {
 
 		// Parse minutes.
 		let remaining = if let Some((minutes, rest)) = partition(remaining, 'm') {
-			let minutes : u32 = minutes.parse().map_err(|_| HoursParseError { data })?;
+			let minutes : u32 = minutes.parse().map_err(|_| HoursParseError::new(data))?;
 			total += minutes;
 			rest
 		} else {
@@ -52,7 +52,7 @@ impl Hours {
 
 		// Make sure no garbage remains.
 		if !remaining.is_empty() {
-			return Err(HoursParseError { data });
+			return Err(HoursParseError::new(data));
 		}
 
 		Ok(Self::from_minutes(total))
@@ -70,13 +70,19 @@ fn partition(input: &str, split: char) -> Option<(&str, &str)> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct HoursParseError<'a> {
-	data: &'a str,
+pub struct HoursParseError {
+	data: String,
 }
 
-impl std::error::Error for HoursParseError<'_> {}
+impl HoursParseError {
+	fn new(data: impl Into<String>) -> Self {
+		Self { data: data.into() }
+	}
+}
 
-impl std::fmt::Display for HoursParseError<'_> {
+impl std::error::Error for HoursParseError {}
+
+impl std::fmt::Display for HoursParseError {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(f, "invalid hours syntax: expected something like 3h30m, got {:?}", self.data)
 	}

@@ -45,13 +45,13 @@ impl Date {
 		// Extract fields.
 		let mut fields = data.splitn(3, '-');
 		let year = fields.next().unwrap();
-		let month = fields.next().ok_or(InvalidDateSyntax { data })?;
-		let day = fields.next().ok_or(InvalidDateSyntax { data })?;
+		let month = fields.next().ok_or_else(|| InvalidDateSyntax::new(data))?;
+		let day = fields.next().ok_or_else(|| InvalidDateSyntax::new(data))?;
 
 		// Parse fields as numbers.
-		let year : i16 = year.parse().map_err(|_| InvalidDateSyntax { data })?;
-		let month : u8 = month.parse().map_err(|_| InvalidDateSyntax { data })?;
-		let day : u8 = day.parse().map_err(|_| InvalidDateSyntax { data })?;
+		let year : i16 = year.parse().map_err(|_| InvalidDateSyntax::new(data))?;
+		let month : u8 = month.parse().map_err(|_| InvalidDateSyntax::new(data))?;
+		let day : u8 = day.parse().map_err(|_| InvalidDateSyntax::new(data))?;
 
 		// Construct date.
 		Ok(Self::new(year, month, day)?)
@@ -117,14 +117,20 @@ pub fn days_in_month(year: i16, month: Month) -> u8 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum DateParseError<'a> {
-	InvalidDateSyntax(InvalidDateSyntax<'a>),
+pub enum DateParseError {
+	InvalidDateSyntax(InvalidDateSyntax),
 	InvalidDate(InvalidDate),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct InvalidDateSyntax<'a> {
-	data: &'a str,
+pub struct InvalidDateSyntax {
+	data: String,
+}
+
+impl InvalidDateSyntax {
+	fn new(data: impl Into<String>) -> Self {
+		Self { data: data.into() }
+	}
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -155,13 +161,13 @@ impl InvalidDayForMonth {
 	}
 }
 
-impl<'a> From<InvalidDateSyntax<'a>> for DateParseError<'a> {
-	fn from(other: InvalidDateSyntax<'a>) -> Self {
+impl From<InvalidDateSyntax> for DateParseError {
+	fn from(other: InvalidDateSyntax) -> Self {
 		Self::InvalidDateSyntax(other)
 	}
 }
 
-impl From<InvalidDate> for DateParseError<'_> {
+impl From<InvalidDate> for DateParseError {
 	fn from(other: InvalidDate) -> Self {
 		Self::InvalidDate(other)
 	}
@@ -179,13 +185,13 @@ impl From<InvalidDayForMonth> for InvalidDate {
 	}
 }
 
-impl std::error::Error for DateParseError<'_> {}
-impl std::error::Error for InvalidDateSyntax<'_> {}
+impl std::error::Error for DateParseError {}
+impl std::error::Error for InvalidDateSyntax {}
 impl std::error::Error for InvalidDate {}
 impl std::error::Error for InvalidMonthNumber {}
 impl std::error::Error for InvalidDayForMonth {}
 
-impl std::fmt::Display for DateParseError<'_> {
+impl std::fmt::Display for DateParseError {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match self {
 			Self::InvalidDateSyntax(e) => write!(f, "{}", e),
@@ -194,7 +200,7 @@ impl std::fmt::Display for DateParseError<'_> {
 	}
 }
 
-impl std::fmt::Display for InvalidDateSyntax<'_> {
+impl std::fmt::Display for InvalidDateSyntax {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(f, "invalid date syntax: expected \"YYYY-MM-DD\", got {:?}", self.data)
 	}
