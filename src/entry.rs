@@ -42,6 +42,17 @@ impl Entry {
 	}
 }
 
+impl std::fmt::Display for Entry {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(f, "{}, {}, ", self.date, self.hours)?;
+		for tag in &self.tags {
+			write!(f, "[{}] ", tag)?;
+		}
+		write!(f, "{}", self.description)?;
+		Ok(())
+	}
+}
+
 #[derive(Clone, Debug)]
 pub enum EntryParseError {
 	InvalidUtf8,
