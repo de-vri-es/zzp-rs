@@ -59,6 +59,18 @@ impl Hours {
 	}
 }
 
+impl std::fmt::Display for Hours {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		let hours = self.hours();
+		let minutes = self.minutes();
+		if hours != 0 {
+			write!(f, "{}h{}m", hours, minutes)
+		} else {
+			write!(f, "{}m", minutes)
+		}
+	}
+}
+
 fn partition(input: &str, split: char) -> Option<(&str, &str)> {
 	let mut fields = input.splitn(2, split);
 	let first = fields.next().unwrap();
