@@ -5,8 +5,8 @@ use crate::hours::{Hours, HoursParseError};
 pub struct Entry {
 	date: Date,
 	hours: Hours,
-	description: String,
 	tags: Vec<String>,
+	description: String,
 }
 
 impl Entry {
@@ -20,18 +20,24 @@ impl Entry {
 		let mut fields = data.splitn(3, ',');
 		let date = fields.next().unwrap().trim();
 		let hours = fields.next().ok_or(InvalidEntrySyntax::new(data))?.trim();
-		let description = fields.next().ok_or(InvalidEntrySyntax::new(data))?.trim();
+		let mut description = fields.next().ok_or(InvalidEntrySyntax::new(data))?.trim();
 
 		// Parse fields.
 		let date = Date::from_str(date)?;
 		let hours = Hours::from_str(hours)?;
-		let description = String::from(description);
+
+		let mut tags = Vec::new();
+		while description.starts_with('[') {
+			let end = description.find(']').ok_or_else(|| UnclosedTag { data: description.to_string() })?;
+			tags.push(description[1..end].to_string());
+			description = &description[end + 1..].trim();
+		}
 
 		Ok(Self {
 			date,
 			hours,
-			description,
-			tags: Vec::new(),
+			tags,
+			description: description.to_string(),
 		})
 	}
 }
@@ -42,10 +48,16 @@ pub enum EntryParseError {
 	InvalidEntrySyntax(InvalidEntrySyntax),
 	DateParseError(DateParseError),
 	HoursParseError(HoursParseError),
+	UnclosedTag(UnclosedTag),
 }
 
 #[derive(Clone, Debug)]
 pub struct InvalidEntrySyntax {
+	data: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct UnclosedTag {
 	data: String,
 }
 
@@ -73,6 +85,12 @@ impl From<HoursParseError> for EntryParseError {
 	}
 }
 
+impl From<UnclosedTag> for EntryParseError {
+	fn from(other: UnclosedTag) -> Self {
+		EntryParseError::UnclosedTag(other)
+	}
+}
+
 impl std::fmt::Display for EntryParseError {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match self {
@@ -80,6 +98,7 @@ impl std::fmt::Display for EntryParseError {
 			Self::InvalidEntrySyntax(e) => write!(f, "{}", e),
 			Self::DateParseError(e) => write!(f, "{}", e),
 			Self::HoursParseError(e) => write!(f, "{}", e),
+			Self::UnclosedTag(e) => write!(f, "{}", e),
 		}
 	}
 }
@@ -90,11 +109,17 @@ impl std::fmt::Display for InvalidEntrySyntax {
 	}
 }
 
+impl std::fmt::Display for UnclosedTag {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(f, "invalid syntax: unclosed tag in description: {:?}", self.data)
+	}
+}
+
 #[cfg(test)]
 #[test]
 fn test_parse_entry_ok() {
 	use assert2::assert;
-	let parsed = Entry::from_str("2020-01-02, 10h12m, goofing around");
+	let parsed = Entry::from_str("2020-01-02, 10h12m, [one][two] [three] goofing around");
 	assert!(let Ok(_) = parsed);
 	let parsed = parsed.unwrap();
 	assert!(parsed.date.year() == 2020);
@@ -102,6 +127,7 @@ fn test_parse_entry_ok() {
 	assert!(parsed.date.day() == 2);
 	assert!(parsed.date.day() == 2);
 	assert!(parsed.hours.total_minutes() == 612);
+	assert!(parsed.tags == &["one", "two", "three"]);
 	assert!(parsed.description == "goofing around");
 }
 
