@@ -3,10 +3,10 @@ use crate::hours::{Hours, HoursParseError};
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Entry {
-	date: Date,
-	hours: Hours,
-	tags: Vec<String>,
-	description: String,
+	pub date: Date,
+	pub hours: Hours,
+	pub tags: Vec<String>,
+	pub description: String,
 }
 
 impl Entry {
