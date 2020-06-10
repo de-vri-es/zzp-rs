@@ -22,6 +22,25 @@ pub enum Month {
 	December = 12,
 }
 
+impl Month {
+	pub fn wrapping_next(self) -> Self {
+		match self {
+			Self::January => Self::Februari,
+			Self::Februari  => Self::March,
+			Self::March => Self::April,
+			Self::April => Self::May,
+			Self::May => Self::June,
+			Self::June => Self::July,
+			Self::July => Self::August,
+			Self::August => Self::September,
+			Self::September => Self::October,
+			Self::October => Self::November,
+			Self::November => Self::December,
+			Self::December => Self::January,
+		}
+	}
+}
+
 impl Date {
 	pub fn new(year: i16, month: u8, day: u8) -> Result<Self, InvalidDate> {
 		let month = Month::new(month)?;
@@ -39,6 +58,28 @@ impl Date {
 
 	pub fn day(self) -> u8 {
 		self.day
+	}
+
+	pub fn next_day(self) -> Date {
+		if self.day < days_in_month(self.year, self.month) {
+			Self {
+				year: self.year,
+				month: self.month,
+				day: self.day + 1,
+			}
+		} else if self.month < Month::December {
+			Self {
+				year: self.year,
+				month: self.month.wrapping_next(),
+				day: 1,
+			}
+		} else {
+			Self {
+				year: self.year + 1,
+				month: Month::January,
+				day: 1,
+			}
+		}
 	}
 
 	pub fn from_str(data: &str) -> Result<Self, DateParseError> {
@@ -250,6 +291,13 @@ mod test {
 		assert!(let Err(_) = Date::new(2020, 2, 30));
 		assert!(let Ok(_) = Date::new(2019, 2, 28));
 		assert!(let Err(_) = Date::new(2019, 2, 29));
+	}
+
+	#[test]
+	fn test_next_date() {
+		assert!(Date::new(2020, 1, 2).unwrap().next_day() == Date::new(2020, 1, 3).unwrap());
+		assert!(Date::new(2020, 1, 31).unwrap().next_day() == Date::new(2020, 2, 1).unwrap());
+		assert!(Date::new(2020, 12, 31).unwrap().next_day() == Date::new(2021, 1, 1).unwrap());
 	}
 
 	#[test]
