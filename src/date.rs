@@ -60,25 +60,55 @@ impl Date {
 		self.day
 	}
 
+	pub fn days_in_month(self) -> u8 {
+		days_in_month(self.year, self.month)
+	}
+
+	pub fn first_day_of_month(self) -> Self {
+		Self {
+			year: self.year,
+			month: self.month,
+			day: 1,
+		}
+	}
+
+	pub fn first_day_of_year(self) -> Self {
+		Self {
+			year: self.year,
+			month: Month::January,
+			day: 1,
+		}
+	}
+
 	pub fn next_day(self) -> Date {
-		if self.day < days_in_month(self.year, self.month) {
+		if self.day == self.days_in_month() {
+			self.first_day_next_month()
+		} else {
 			Self {
 				year: self.year,
 				month: self.month,
 				day: self.day + 1,
 			}
-		} else if self.month < Month::December {
+		}
+	}
+
+	pub fn first_day_next_month(self) -> Self {
+		if self.month == Month::December {
+			self.first_day_next_year()
+		} else {
 			Self {
 				year: self.year,
 				month: self.month.wrapping_next(),
 				day: 1,
 			}
-		} else {
-			Self {
-				year: self.year + 1,
-				month: Month::January,
-				day: 1,
-			}
+		}
+	}
+
+	pub fn first_day_next_year(self) -> Self {
+		Self {
+			year: self.year + 1,
+			month: Month::January,
+			day: 1,
 		}
 	}
 
