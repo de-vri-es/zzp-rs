@@ -22,21 +22,45 @@ pub enum Month {
 	December = 12,
 }
 
+pub use Month::*;
+
 impl Month {
+	pub fn new(month: u8) -> Result<Self, InvalidMonthNumber> {
+		match month {
+			1 => Ok(Self::January),
+			2 => Ok(Self::Februari),
+			3 => Ok(Self::March),
+			4 => Ok(Self::April),
+			5 => Ok(Self::May),
+			6 => Ok(Self::June),
+			7 => Ok(Self::July),
+			8 => Ok(Self::August),
+			9 => Ok(Self::September),
+			10 => Ok(Self::October),
+			11 => Ok(Self::November),
+			12 => Ok(Self::December),
+			number => Err(InvalidMonthNumber { number }),
+		}
+	}
+
+	pub fn as_number(self) -> u8 {
+		self as u8
+	}
+
 	pub fn wrapping_next(self) -> Self {
 		match self {
-			Self::January => Self::Februari,
-			Self::Februari  => Self::March,
-			Self::March => Self::April,
-			Self::April => Self::May,
-			Self::May => Self::June,
-			Self::June => Self::July,
-			Self::July => Self::August,
-			Self::August => Self::September,
-			Self::September => Self::October,
-			Self::October => Self::November,
-			Self::November => Self::December,
-			Self::December => Self::January,
+			January => Februari,
+			Februari  => March,
+			March => April,
+			April => May,
+			May => June,
+			June => July,
+			July => August,
+			August => September,
+			September => October,
+			October => November,
+			November => December,
+			December => January,
 		}
 	}
 }
@@ -75,7 +99,7 @@ impl Date {
 	pub fn first_day_of_year(self) -> Self {
 		Self {
 			year: self.year,
-			month: Month::January,
+			month: January,
 			day: 1,
 		}
 	}
@@ -93,7 +117,7 @@ impl Date {
 	}
 
 	pub fn first_day_next_month(self) -> Self {
-		if self.month == Month::December {
+		if self.month == December {
 			self.first_day_next_year()
 		} else {
 			Self {
@@ -107,7 +131,7 @@ impl Date {
 	pub fn first_day_next_year(self) -> Self {
 		Self {
 			year: self.year + 1,
-			month: Month::January,
+			month: January,
 			day: 1,
 		}
 	}
@@ -126,30 +150,6 @@ impl Date {
 
 		// Construct date.
 		Ok(Self::new(year, month, day)?)
-	}
-}
-
-impl Month {
-	pub fn new(month: u8) -> Result<Self, InvalidMonthNumber> {
-		match month {
-			1 => Ok(Self::January),
-			2 => Ok(Self::Februari),
-			3 => Ok(Self::March),
-			4 => Ok(Self::April),
-			5 => Ok(Self::May),
-			6 => Ok(Self::June),
-			7 => Ok(Self::July),
-			8 => Ok(Self::August),
-			9 => Ok(Self::September),
-			10 => Ok(Self::October),
-			11 => Ok(Self::November),
-			12 => Ok(Self::December),
-			number => Err(InvalidMonthNumber { number }),
-		}
-	}
-
-	pub fn as_number(self) -> u8 {
-		self as u8
 	}
 }
 
@@ -172,18 +172,18 @@ pub fn is_leap_year(year: i16) -> bool {
 
 pub fn days_in_month(year: i16, month: Month) -> u8 {
 	match month {
-		Month::January => 31,
-		Month::Februari => if is_leap_year(year) { 29 } else { 28 },
-		Month::March => 31,
-		Month::April => 30,
-		Month::May => 31,
-		Month::June => 30,
-		Month::July => 31,
-		Month::August => 31,
-		Month::September => 30,
-		Month::October => 31,
-		Month::November => 30,
-		Month::December => 31,
+		January => 31,
+		Februari => if is_leap_year(year) { 29 } else { 28 },
+		March => 31,
+		April => 30,
+		May => 31,
+		June => 30,
+		July => 31,
+		August => 31,
+		September => 30,
+		October => 31,
+		November => 30,
+		December => 31,
 	}
 }
 
@@ -314,7 +314,7 @@ mod test {
 	fn test_make_date() {
 		assert!(let Ok(_) = Date::new(2020, 1, 2));
 		assert!(Date::new(2020, 1, 2).unwrap().year() == 2020);
-		assert!(Date::new(2020, 1, 2).unwrap().month() == Month::January);
+		assert!(Date::new(2020, 1, 2).unwrap().month() == January);
 		assert!(Date::new(2020, 1, 2).unwrap().day() == 2);
 
 		assert!(let Ok(_) = Date::new(2020, 2, 29));
@@ -332,7 +332,7 @@ mod test {
 
 	#[test]
 	fn test_parse_date() {
-		assert!(let Ok(Date { year: 2020, month: Month::January, day: 2 }) = Date::from_str("2020-01-02"));
+		assert!(let Ok(Date { year: 2020, month: January, day: 2 }) = Date::from_str("2020-01-02"));
 		assert!(let Err(DateParseError::InvalidDateSyntax(_)) = Date::from_str("not-a-date"));
 		assert!(let Err(DateParseError::InvalidDate(_)) = Date::from_str("2019-30-12"));
 	}
