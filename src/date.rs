@@ -1,8 +1,6 @@
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct Date {
+pub struct Year {
 	year: i16,
-	month: Month,
-	day: u8,
 }
 
 #[repr(u8)]
@@ -24,6 +22,89 @@ pub enum Month {
 
 pub use Month::*;
 
+impl std::convert::TryFrom<u8> for Month {
+	type Error = InvalidMonthNumber;
+
+	fn try_from(other: u8) -> Result<Self, Self::Error> {
+		Self::new(other)
+	}
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct YearMonth {
+	year: Year,
+	month: Month,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct Date {
+	year: Year,
+	month: Month,
+	day: u8,
+}
+
+impl Year {
+	pub fn new(year: i16) -> Self {
+		Self { year }
+	}
+
+	pub fn as_number(self) -> i16 {
+		self.year
+	}
+
+	pub fn has_leap_day(self) -> bool {
+		self.year % 4 == 0 && (self.year % 100 != 0 || self.year % 400 == 0)
+	}
+
+	pub fn next(self) -> Self {
+		Self::new(self.year + 1)
+	}
+
+	pub fn prev(self) -> Self {
+		Self::new(self.year - 1)
+	}
+
+	pub fn with_month(self, month: Month) -> YearMonth {
+		YearMonth::new(self, month)
+	}
+
+	pub fn first_month(self) -> YearMonth {
+		self.with_month(January)
+	}
+
+	pub fn last_month(self) -> YearMonth {
+		self.with_month(December)
+	}
+
+	pub fn first_day(self) -> Date {
+		Date {
+			year: self,
+			month: January,
+			day: 1,
+		}
+	}
+
+	pub fn last_day(self) -> Date {
+		Date {
+			year: self,
+			month: December,
+			day: 31,
+		}
+	}
+}
+
+impl From<i16> for Year {
+	fn from(other: i16) -> Self {
+		Self::new(other)
+	}
+}
+
+impl PartialEq<i16> for Year {
+	fn eq(&self, other: &i16) -> bool {
+		self.as_number() == *other
+	}
+}
+
 impl Month {
 	pub fn new(month: u8) -> Result<Self, InvalidMonthNumber> {
 		match month {
@@ -41,6 +122,10 @@ impl Month {
 			12 => Ok(Self::December),
 			number => Err(InvalidMonthNumber { number }),
 		}
+	}
+
+	pub unsafe fn new_unchecked(month: u8) -> Self {
+		std::mem::transmute(month)
 	}
 
 	pub fn as_number(self) -> u8 {
@@ -63,16 +148,115 @@ impl Month {
 			December => January,
 		}
 	}
+
+	pub fn wrapping_prev(self) -> Self {
+		match self {
+			January => December,
+			Februari => January,
+			March => Februari,
+			April => March,
+			May => April,
+			June => May,
+			July => June,
+			August => July,
+			September => August,
+			October => September,
+			November => October,
+			December => November,
+		}
+	}
+}
+
+impl PartialEq<u8> for Month {
+	fn eq(&self, other: &u8) -> bool {
+		self.as_number() == *other
+	}
+}
+
+impl YearMonth {
+	pub fn new(year: impl Into<Year>, month: Month) -> Self {
+		let year = year.into();
+		Self { year, month }
+	}
+
+	pub fn year(self) -> Year {
+		self.year
+	}
+
+	pub fn month(self) -> Month {
+		self.month
+	}
+
+	pub fn total_days(self) -> u8 {
+		match self.month {
+			January => 31,
+			Februari => if self.year.has_leap_day() { 29 } else { 28 },
+			March => 31,
+			April => 30,
+			May => 31,
+			June => 30,
+			July => 31,
+			August => 31,
+			September => 30,
+			October => 31,
+			November => 30,
+			December => 31,
+		}
+	}
+
+	fn next(self) -> Self {
+		if self.month == December {
+			Self::new(self.year.next(), January)
+		} else {
+			Self::new(self.year, self.month.wrapping_next())
+		}
+	}
+
+	fn prev(self) -> Self {
+		if self.month == January {
+			Self::new(self.year.prev(), December)
+		} else {
+			Self::new(self.year, self.month.wrapping_prev())
+		}
+	}
+
+	pub fn with_day(self, day: u8) -> Result<Date, InvalidDayForMonth> {
+		InvalidDayForMonth::check(self.year, self.month, day)?;
+		Ok(Date {
+			year: self.year,
+			month: self.month,
+			day,
+		})
+	}
+
+	fn first_day(self) -> Date {
+		Date {
+			year: self.year,
+			month: self.month,
+			day: 1,
+		}
+	}
+
+	fn last_day(self) -> Date {
+		Date {
+			year: self.year,
+			month: self.month,
+			day: self.total_days(),
+		}
+	}
 }
 
 impl Date {
-	pub fn new(year: i16, month: u8, day: u8) -> Result<Self, InvalidDate> {
-		let month = Month::new(month)?;
-		InvalidDayForMonth::check(year, month, day)?;
-		Ok(Self { year, month, day })
+	pub fn new<M>(year: impl Into<Year>, month: M, day: u8) -> Result<Self, InvalidDate>
+	where
+		M: std::convert::TryInto<Month>,
+		InvalidDate: From<M::Error>,
+	{
+		let year_month = YearMonth::new(year, month.try_into()?);
+		Ok(year_month.with_day(day)?)
 	}
 
-	pub fn year(self) -> i16 {
+	pub fn year(self) -> Year {
 		self.year
 	}
 
@@ -84,29 +268,13 @@ impl Date {
 		self.day
 	}
 
-	pub fn days_in_month(self) -> u8 {
-		days_in_month(self.year, self.month)
+	pub fn year_month(self) -> YearMonth {
+		YearMonth::new(self.year(), self.month())
 	}
 
-	pub fn first_day_of_month(self) -> Self {
-		Self {
-			year: self.year,
-			month: self.month,
-			day: 1,
-		}
-	}
-
-	pub fn first_day_of_year(self) -> Self {
-		Self {
-			year: self.year,
-			month: January,
-			day: 1,
-		}
-	}
-
-	pub fn next_day(self) -> Date {
-		if self.day == self.days_in_month() {
-			self.first_day_next_month()
+	pub fn next(self) -> Date {
+		if self.day == self.year_month().total_days() {
+			self.year_month().next().first_day()
 		} else {
 			Self {
 				year: self.year,
@@ -116,23 +284,15 @@ impl Date {
 		}
 	}
 
-	pub fn first_day_next_month(self) -> Self {
-		if self.month == December {
-			self.first_day_next_year()
+	pub fn prev(self) -> Date {
+		if self.day == 1 {
+			self.year_month().prev().last_day()
 		} else {
 			Self {
 				year: self.year,
-				month: self.month.wrapping_next(),
-				day: 1,
+				month: self.month,
+				day: self.day - 1,
 			}
-		}
-	}
-
-	pub fn first_day_next_year(self) -> Self {
-		Self {
-			year: self.year + 1,
-			month: January,
-			day: 1,
 		}
 	}
 
@@ -153,6 +313,12 @@ impl Date {
 	}
 }
 
+impl std::fmt::Display for Year {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(f, "{:04}", self.year)
+	}
+}
+
 impl std::fmt::Display for Month {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		// Implement Display for Month by calling Debug::fmt.
@@ -160,30 +326,15 @@ impl std::fmt::Display for Month {
 	}
 }
 
-impl std::fmt::Display for Date {
+impl std::fmt::Display for YearMonth {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "{:04}-{:02}-{:02}", self.year, self.month.as_number(), self.day)
+		write!(f, "{:04}-{:02}", self.year.as_number(), self.month().as_number())
 	}
 }
 
-pub fn is_leap_year(year: i16) -> bool {
-	year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
-}
-
-pub fn days_in_month(year: i16, month: Month) -> u8 {
-	match month {
-		January => 31,
-		Februari => if is_leap_year(year) { 29 } else { 28 },
-		March => 31,
-		April => 30,
-		May => 31,
-		June => 30,
-		July => 31,
-		August => 31,
-		September => 30,
-		October => 31,
-		November => 30,
-		December => 31,
+impl std::fmt::Display for Date {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(f, "{:04}-{:02}-{:02}", self.year.as_number(), self.month.as_number(), self.day)
 	}
 }
 
@@ -210,6 +361,12 @@ pub enum InvalidDate {
 	InvalidDayForMonth(InvalidDayForMonth),
 }
 
+impl From<std::convert::Infallible> for InvalidDate {
+	fn from(_: std::convert::Infallible) -> Self {
+		unreachable!()
+	}
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InvalidMonthNumber {
 	number: u8,
@@ -217,14 +374,14 @@ pub struct InvalidMonthNumber {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InvalidDayForMonth {
-	year: i16,
+	year: Year,
 	month: Month,
 	day: u8,
 }
 
 impl InvalidDayForMonth {
-	pub fn check(year: i16, month: Month, day: u8) -> Result<(), Self> {
-		if day < 1 || day > days_in_month(year, month) {
+	pub fn check(year: Year, month: Month, day: u8) -> Result<(), Self> {
+		if day < 1 || day > YearMonth::new(year, month).total_days() {
 			Err(Self { year, month, day })
 		} else {
 			Ok(())
@@ -299,7 +456,7 @@ impl std::fmt::Display for InvalidDayForMonth {
 			"invalid day for {} {}: expected 1-{}, got {}",
 			self.month,
 			self.year,
-			days_in_month(self.year, self.month),
+			YearMonth::new(self.year, self.month).total_days(),
 			self.day,
 		)
 	}
@@ -325,24 +482,26 @@ mod test {
 
 	#[test]
 	fn test_next_date() {
-		assert!(Date::new(2020, 1, 2).unwrap().next_day() == Date::new(2020, 1, 3).unwrap());
-		assert!(Date::new(2020, 1, 31).unwrap().next_day() == Date::new(2020, 2, 1).unwrap());
-		assert!(Date::new(2020, 12, 31).unwrap().next_day() == Date::new(2021, 1, 1).unwrap());
+		assert!(Date::new(2020, 1, 2).unwrap().next() == Date::new(2020, 1, 3).unwrap());
+		assert!(Date::new(2020, 1, 31).unwrap().next() == Date::new(2020, 2, 1).unwrap());
+		assert!(Date::new(2020, 12, 31).unwrap().next() == Date::new(2021, 1, 1).unwrap());
 	}
 
 	#[test]
 	fn test_parse_date() {
-		assert!(let Ok(Date { year: 2020, month: January, day: 2 }) = Date::from_str("2020-01-02"));
+		assert!(Date::from_str("2020-01-02").unwrap().year() == 2020);
+		assert!(Date::from_str("2020-01-02").unwrap().month() == January);
+		assert!(Date::from_str("2020-01-02").unwrap().day() == 2);
 		assert!(let Err(DateParseError::InvalidDateSyntax(_)) = Date::from_str("not-a-date"));
 		assert!(let Err(DateParseError::InvalidDate(_)) = Date::from_str("2019-30-12"));
 	}
 
 	#[test]
 	fn test_is_leap_year() {
-		assert!(is_leap_year(2020) == true);
-		assert!(is_leap_year(2021) == false);
-		assert!(is_leap_year(1900) == false);
-		assert!(is_leap_year(2000) == true);
+		assert!(Year::new(2020).has_leap_day() == true);
+		assert!(Year::new(2021).has_leap_day() == false);
+		assert!(Year::new(1900).has_leap_day() == false);
+		assert!(Year::new(2000).has_leap_day() == true);
 	}
 
 }
