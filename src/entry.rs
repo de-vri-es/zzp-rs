@@ -1,5 +1,7 @@
-use crate::date::{Date, DateParseError};
 use crate::hours::{Hours, HoursParseError};
+
+pub use gregorian::Date;
+pub use gregorian::DateParseError;
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Entry {
@@ -23,7 +25,7 @@ impl Entry {
 		let mut description = fields.next().ok_or(InvalidEntrySyntax::new(data))?.trim();
 
 		// Parse fields.
-		let date = Date::from_str(date)?;
+		let date : Date =  date.parse()?;
 		let hours = Hours::from_str(hours)?;
 
 		let mut tags = Vec::new();
@@ -134,7 +136,7 @@ fn test_parse_entry_ok() {
 	assert!(let Ok(_) = parsed);
 	let parsed = parsed.unwrap();
 	assert!(parsed.date.year() == 2020);
-	assert!(parsed.date.month() == crate::date::Month::January);
+	assert!(parsed.date.month() == gregorian::Month::January);
 	assert!(parsed.date.day() == 2);
 	assert!(parsed.date.day() == 2);
 	assert!(parsed.hours.total_minutes() == 612);

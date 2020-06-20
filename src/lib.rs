@@ -1,12 +1,11 @@
 use std::path::Path;
 
-mod date;
 mod hours;
 mod entry;
 
-pub use date::*;
 pub use hours::*;
 pub use entry::*;
+pub use gregorian;
 
 pub fn parse_file(path: impl AsRef<Path>) -> Result<Vec<Entry>, FileParseError> {
 	let data = std::fs::read(path)?;
