@@ -2,9 +2,12 @@ use std::path::Path;
 
 mod hours;
 mod entry;
+mod partial_date;
 
 pub use hours::*;
 pub use entry::*;
+pub use partial_date::*;
+
 pub use gregorian;
 
 pub fn parse_file(path: impl AsRef<Path>) -> Result<Vec<Entry>, FileParseError> {
