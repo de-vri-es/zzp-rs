@@ -9,4 +9,8 @@ assert2 = "0.2.1"
 structopt = "0.3.14"
 
 [dependencies]
-gregorian = "0.1.0"
+env_logger = "0.7.1"
+gregorian  = "0.1.0"
+log        = "0.4.8"
+structopt  = "0.3.14"
+yansi      = "0.5.0"
