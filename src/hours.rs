@@ -71,6 +71,32 @@ impl std::fmt::Display for Hours {
 	}
 }
 
+impl std::ops::Add<Hours> for Hours {
+	type Output = Self;
+	fn add(self, other: Hours) -> Self::Output {
+		Self::from_minutes(self.total_minutes() + other.total_minutes())
+	}
+}
+
+impl std::ops::Add<&'_ Hours> for &'_ Hours {
+	type Output = Hours;
+	fn add(self, other: &Hours) -> Self::Output {
+		*self + *other
+	}
+}
+
+impl std::ops::AddAssign for Hours {
+	fn add_assign(&mut self, other: Hours) {
+		self.minutes += other.total_minutes()
+	}
+}
+
+impl std::ops::AddAssign<&'_ Hours> for Hours {
+	fn add_assign(&mut self, other: &Hours) {
+		*self += *other;
+	}
+}
+
 fn partition(input: &str, split: char) -> Option<(&str, &str)> {
 	let mut fields = input.splitn(2, split);
 	let first = fields.next().unwrap();
@@ -111,4 +137,25 @@ fn test_parse_hours() {
 	assert!(Hours::from_str("10h") == Ok(Hours::from_hours_minutes(10, 0)));
 	assert!(Hours::from_str("11h30m") == Ok(Hours::from_hours_minutes(11, 30)));
 	assert!(Hours::from_str("12h70m") == Ok(Hours::from_hours_minutes(13, 10)));
+}
+
+#[cfg(test)]
+#[test]
+fn test_add() {
+	use assert2::assert;
+
+	assert!(Hours::from_minutes(1) + Hours::from_minutes(1) == Hours::from_minutes(2));
+	assert!(&Hours::from_minutes(1) + &Hours::from_minutes(1) == Hours::from_minutes(2));
+	assert!(Hours::from_minutes(90) + Hours::from_minutes(123) == Hours::from_minutes(213));
+	assert!(&Hours::from_minutes(90) + &Hours::from_minutes(123) == Hours::from_minutes(213));
+
+	let mut hours = Hours::from_minutes(1);
+	hours += Hours::from_minutes(1);
+	assert!(hours.total_minutes() == 2);
+	hours += &Hours::from_minutes(1);
+	assert!(hours.total_minutes() == 3);
+	hours += Hours::from_minutes(87);
+	assert!(hours.total_minutes() == 90);
+	hours += &Hours::from_minutes(123);
+	assert!(hours.total_minutes() == 213);
 }
