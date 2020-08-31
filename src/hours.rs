@@ -64,9 +64,9 @@ impl std::fmt::Display for Hours {
 		let hours = self.hours();
 		let minutes = self.minutes();
 		if hours != 0 {
-			write!(f, "{}h{}m", hours, minutes)
+			write!(f, "{}h{:02}m", hours, minutes)
 		} else {
-			write!(f, "{}m", minutes)
+			write!(f, "{:02}m", minutes)
 		}
 	}
 }
