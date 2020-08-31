@@ -25,7 +25,7 @@ pub fn parse_bytes(data: &[u8]) -> Result<Vec<Entry>, FileEntryParseError> {
 			continue;
 		}
 
-		let entry = Entry::from_str(line).map_err(|e| FileEntryParseError::new(i, e))?;
+		let entry = Entry::from_str(line).map_err(|e| FileEntryParseError::new(i + 1, e))?;
 		result.push(entry);
 	}
 
