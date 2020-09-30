@@ -166,12 +166,14 @@ fn main() {
 	}
 }
 
-fn color_cents(cents: Cents) -> impl std::fmt::Display {
-	let color = match cents.is_negative() {
-		true => yansi::Color::Red.style(),
-		false => yansi::Color::Green.style(),
-	};
-	color.paint(cents)
+fn color_cents(cents: Cents) -> yansi::Paint<Cents> {
+	if cents.total_cents() > 0 {
+		yansi::Color::Green.style().paint(cents)
+	} else if cents.total_cents() < 0 {
+		yansi::Color::Red.style().paint(cents)
+	} else {
+		yansi::Color::Fixed(241).paint(cents)
+	}
 }
 
 fn print_full(transaction: &Transaction) {
@@ -186,12 +188,8 @@ fn print_full(transaction: &Transaction) {
 		);
 	}
 	for mutation in &transaction.mutations {
-		let color = match mutation.amount.is_negative() {
-			true => yansi::Color::Red.style(),
-			false => yansi::Color::Green.style(),
-		};
 		println!("{amount} {account}",
-			amount  = color.paint(mutation.amount),
+			amount  = color_cents(mutation.amount),
 			account = mutation.account,
 		);
 	}
@@ -262,11 +260,7 @@ fn find_unbalanced<'a>(transactions: impl IntoIterator<Item = Transaction<'a>>) 
 }
 
 fn print_totals(totals: &Tree<Cents>) {
-	let color = match totals.root.data.is_negative() {
-		true => yansi::Color::Red.style(),
-		false => yansi::Color::Green.style(),
-	};
-	println!("Total: {}", color.paint(totals.root.data));
+	println!("Total: {}", color_cents(totals.root.data));
 	print_totals_subtree(&totals.root, "");
 }
 
@@ -278,11 +272,7 @@ fn print_totals_subtree(node: &Node<Cents>, indent: &str) {
 			("├─", "│  ")
 		};
 
-		let color = match child.data.is_negative() {
-			true => yansi::Color::Red.style(),
-			false => yansi::Color::Green.style(),
-		};
-		println!("{}{} {}: {}", indent, tree_char, child.account.name(), color.paint(child.data));
+		println!("{}{} {}: {}", indent, tree_char, child.account.name(), color_cents(child.data));
 		print_totals_subtree(child, &format!("{}{}", indent, subindent));
 	}
 }
