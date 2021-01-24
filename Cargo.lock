@@ -395,9 +395,16 @@ name = "zzp"
 version = "0.1.0"
 dependencies = [
  "assert2",
- "env_logger",
  "gregorian",
+]
+
+[[package]]
+name = "zzp-tools"
+version = "0.1.0"
+dependencies = [
+ "env_logger",
  "log",
  "structopt",
  "yansi",
+ "zzp",
 ]

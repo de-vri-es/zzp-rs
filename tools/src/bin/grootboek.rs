@@ -1,9 +1,9 @@
-use gregorian::Date;
 use std::path::PathBuf;
 use structopt::StructOpt;
 use structopt::clap::AppSettings;
 use yansi::Paint;
 
+use zzp::gregorian::{Date, Month, Year, YearMonth};
 use zzp::grootboek::Account;
 use zzp::grootboek::Cents;
 use zzp::grootboek::Transaction;
@@ -45,9 +45,9 @@ struct Options {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 enum PartialDate {
-	Year(gregorian::Year),
-	Month(gregorian::YearMonth),
-	Day(gregorian::Date),
+	Year(Year),
+	Month(YearMonth),
+	Day(Date),
 }
 
 impl PartialDate {
@@ -80,14 +80,14 @@ impl std::str::FromStr for PartialDate {
 
 		let year = parts.next().unwrap();
 		let year: i16 = year.parse().map_err(|_| format!("invalid year: {:?}", year))?;
-		let year = gregorian::Year::new(year);
+		let year = Year::new(year);
 
 		let month: u8 = match parts.next() {
 			None => return Ok(PartialDate::Year(year.into())),
 			Some(x) => x.parse().map_err(|_| format!("invalid month: {:?}", x))?,
 		};
 
-		let month = gregorian::Month::new(month).map_err(|_| format!("invalid month: {}", month))?;
+		let month = Month::new(month).map_err(|_| format!("invalid month: {}", month))?;
 		let year_month = year.with_month(month);
 
 		let day: u8 = match parts.next() {
