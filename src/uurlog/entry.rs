@@ -1,7 +1,7 @@
-use crate::hours::{Hours, HoursParseError};
-
 pub use gregorian::Date;
 pub use gregorian::DateParseError;
+
+use super::hours::{Hours, HoursParseError};
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Entry {

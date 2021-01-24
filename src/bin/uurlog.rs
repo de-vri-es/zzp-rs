@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 use structopt::StructOpt;
 use structopt::clap;
-use uurlog::PartialDate;
 use yansi::Paint;
 use std::fmt::Display;
 
+use zzp::uurlog::PartialDate;
 
 #[derive(StructOpt)]
 #[structopt(setting = clap::AppSettings::DeriveDisplayOrder)]
@@ -52,7 +52,7 @@ fn init_logging(verbosity: i8) {
 
 fn do_main(options: Options) -> Result<(), ()> {
 	// Read all entries from the hour log.
-	let mut entries = uurlog::parse_file(&options.file)
+	let mut entries = zzp::uurlog::parse_file(&options.file)
 		.map_err(|e| log::error!("failed to read {}: {}", options.file.display(), e))?;
 
 	// Filter on date.
@@ -61,7 +61,7 @@ fn do_main(options: Options) -> Result<(), ()> {
 		entries.retain(|x| period.contains(&x.date));
 	}
 
-	let mut total = uurlog::Hours::from_minutes(0);
+	let mut total = zzp::uurlog::Hours::from_minutes(0);
 	for entry in &entries {
 		total += entry.hours;
 		println!("{date}, {hours}, {tags}{description}",
