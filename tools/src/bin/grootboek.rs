@@ -3,7 +3,7 @@ use structopt::StructOpt;
 use structopt::clap::AppSettings;
 use yansi::Paint;
 
-use zzp::gregorian::{Date, Month, Year, YearMonth};
+use zzp::partial_date::PartialDate;
 use zzp::grootboek::Account;
 use zzp::grootboek::Cents;
 use zzp::grootboek::Transaction;
@@ -43,71 +43,13 @@ struct Options {
 	end_date: Option<PartialDate>,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-enum PartialDate {
-	Year(Year),
-	Month(YearMonth),
-	Day(Date),
-}
-
-impl PartialDate {
-	fn as_start_date(self) -> Date {
-		match self {
-			Self::Year(x) => x.first_day(),
-			Self::Month(x) => x.first_day(),
-			Self::Day(x) => x,
-		}
-	}
-
-	fn as_end_date(self) -> Date {
-		match self {
-			Self::Year(x) => x.last_day(),
-			Self::Month(x) => x.last_day(),
-			Self::Day(x) => x,
-		}
-	}
-
-	fn as_inclusive_date_range(self) -> (Date, Date) {
-		(self.as_start_date(), self.as_end_date())
-	}
-}
-
-impl std::str::FromStr for PartialDate {
-	type Err = String;
-
-	fn from_str(value: &str) -> Result<Self, String> {
-		let mut parts = value.trim().splitn(3, '-');
-
-		let year = parts.next().unwrap();
-		let year: i16 = year.parse().map_err(|_| format!("invalid year: {:?}", year))?;
-		let year = Year::new(year);
-
-		let month: u8 = match parts.next() {
-			None => return Ok(PartialDate::Year(year.into())),
-			Some(x) => x.parse().map_err(|_| format!("invalid month: {:?}", x))?,
-		};
-
-		let month = Month::new(month).map_err(|_| format!("invalid month: {}", month))?;
-		let year_month = year.with_month(month);
-
-		let day: u8 = match parts.next() {
-			None => return Ok(PartialDate::Month(year_month)),
-			Some(x) => x.parse().map_err(|_| format!("invalid day: {:?}", x))?,
-		};
-
-		let date = year_month.with_day(day)
-			.map_err(|_| format!("invalid date: {}-{}-{}", year, month.to_number(), day))?;
-		Ok(PartialDate::Day(date))
-	}
-}
-
 fn do_main(options: &Options) -> Result<(), String> {
 	let mut start_date = options.start_date.map(|x| x.as_start_date());
-	let mut end_date = options.end_date.map(|x| x.as_end_date());
+	let mut end_date = options.end_date.map(|x| x.as_end_date().next());
 	if let Some(period) = options.period {
-		let (start, end) = period.as_inclusive_date_range();
-		start_date = Some(start);
-		end_date = Some(end);
+		let range = period.as_range();
+		start_date = Some(range.start);
+		end_date = Some(range.end);
 	};
 
 	let data = std::fs::read_to_string(&options.file).map_err(|e| format!("failed to read {:?}: {}", options.file, e))?;
@@ -119,7 +61,7 @@ fn do_main(options: &Options) -> Result<(), String> {
 			}
 		}
 		if let Some(end_date) = &end_date {
-			if transaction.date > *end_date {
+			if transaction.date >= *end_date {
 				return false;
 			}
 		}

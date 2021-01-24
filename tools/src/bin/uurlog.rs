@@ -4,7 +4,7 @@ use structopt::clap;
 use yansi::Paint;
 use std::fmt::Display;
 
-use zzp::uurlog::PartialDate;
+use zzp::partial_date::PartialDate;
 
 #[derive(StructOpt)]
 #[structopt(setting = clap::AppSettings::DeriveDisplayOrder)]

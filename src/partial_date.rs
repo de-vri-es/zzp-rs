@@ -9,6 +9,32 @@ pub enum PartialDate {
 }
 
 impl PartialDate {
+	/// Interpret the partial date as start date.
+	///
+	/// This gives the first day of a year or month if more specific fields are not given.
+	pub fn as_start_date(self) -> Date {
+		match self {
+			Self::Year(x) => x.first_day(),
+			Self::YearMonth(x) => x.first_day(),
+			Self::YearMonthDay(x) => x,
+		}
+	}
+
+	/// Interpret the partial date as an end date.
+	///
+	/// This gives the last day of a year or month if more specific fields are not given.
+	pub fn as_end_date(self) -> Date {
+		match self {
+			Self::Year(x) => x.last_day(),
+			Self::YearMonth(x) => x.last_day(),
+			Self::YearMonthDay(x) => x,
+		}
+	}
+
+	/// Interpret the partial date as a half-open date range.
+	///
+	/// This gives a date range comprising of the entire year or month,
+	/// or just a single day.
 	pub fn as_range(self) -> Range<Date> {
 		match self {
 			Self::Year(x) => Range {
