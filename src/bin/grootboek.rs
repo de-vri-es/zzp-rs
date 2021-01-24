@@ -1,7 +1,7 @@
-use grootboek::Account;
-use grootboek::Cents;
-use grootboek::Date;
-use grootboek::Transaction;
+use zzp::grootboek::Account;
+use zzp::grootboek::Cents;
+use zzp::grootboek::Date;
+use zzp::grootboek::Transaction;
 use std::path::PathBuf;
 use structopt::StructOpt;
 use structopt::clap::AppSettings;
