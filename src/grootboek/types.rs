@@ -1,4 +1,4 @@
-use super::date::Date;
+use gregorian::Date;
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Transaction<'a> {

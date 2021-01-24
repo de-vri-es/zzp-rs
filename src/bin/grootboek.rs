@@ -1,11 +1,12 @@
-use zzp::grootboek::Account;
-use zzp::grootboek::Cents;
-use zzp::grootboek::Date;
-use zzp::grootboek::Transaction;
+use gregorian::Date;
 use std::path::PathBuf;
 use structopt::StructOpt;
 use structopt::clap::AppSettings;
 use yansi::Paint;
+
+use zzp::grootboek::Account;
+use zzp::grootboek::Cents;
+use zzp::grootboek::Transaction;
 
 #[derive(StructOpt)]
 #[structopt(setting = AppSettings::ColoredHelp)]
@@ -44,25 +45,25 @@ struct Options {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 enum PartialDate {
-	Year(i32),
-	Month(i32, i32),
-	Day(i32, i32, i32),
+	Year(gregorian::Year),
+	Month(gregorian::YearMonth),
+	Day(gregorian::Date),
 }
 
 impl PartialDate {
 	fn as_start_date(self) -> Date {
 		match self {
-			Self::Year(y) => Date::from_parts(y, 1, 1).unwrap(),
-			Self::Month(y, m) => Date::from_parts(y, m, 1).unwrap(),
-			Self::Day(y, m, d) => Date::from_parts(y, m, d).unwrap(),
+			Self::Year(x) => x.first_day(),
+			Self::Month(x) => x.first_day(),
+			Self::Day(x) => x,
 		}
 	}
 
 	fn as_end_date(self) -> Date {
 		match self {
-			Self::Year(y) => Date::from_parts(y, 1, 1).unwrap().last_day_of_year(),
-			Self::Month(y, m) => Date::from_parts(y, m, 1).unwrap().last_day_of_month(),
-			Self::Day(y, m, d) => Date::from_parts(y, m, d).unwrap(),
+			Self::Year(x) => x.last_day(),
+			Self::Month(x) => x.last_day(),
+			Self::Day(x) => x,
 		}
 	}
 
@@ -75,27 +76,28 @@ impl std::str::FromStr for PartialDate {
 	type Err = String;
 
 	fn from_str(value: &str) -> Result<Self, String> {
-		let value = value.trim();
-
-		let check_date = |y, m, d| Date::from_parts(y, m, d).map_err(|_| format!("invalid date: {}-{}-{}", y, m, d));
-
 		let mut parts = value.trim().splitn(3, '-');
-		let year = parts.next().map(|x| x.parse::<i32>().map_err(|_| format!("invalid year: {:?}", x))).unwrap()?;
 
-		let month = match parts.next() {
-			None => return Ok(PartialDate::Year(year)),
-			Some(x) => x.parse::<i32>().map_err(|_| format!("invalid month: {:?}", x))?,
+		let year = parts.next().unwrap();
+		let year: i16 = year.parse().map_err(|_| format!("invalid year: {:?}", year))?;
+		let year = gregorian::Year::new(year);
+
+		let month: u8 = match parts.next() {
+			None => return Ok(PartialDate::Year(year.into())),
+			Some(x) => x.parse().map_err(|_| format!("invalid month: {:?}", x))?,
 		};
 
-		check_date(year, month, 1)?;
+		let month = gregorian::Month::new(month).map_err(|_| format!("invalid month: {}", month))?;
+		let year_month = year.with_month(month);
 
-		let day = match parts.next() {
-			None => return Ok(PartialDate::Month(year, month)),
-			Some(x) => x.parse::<i32>().map_err(|_| format!("invalid day: {:?}", x))?,
+		let day: u8 = match parts.next() {
+			None => return Ok(PartialDate::Month(year_month)),
+			Some(x) => x.parse().map_err(|_| format!("invalid day: {:?}", x))?,
 		};
 
-		check_date(year, month, day)?;
-		Ok(PartialDate::Day(year, month, day))
+		let date = year_month.with_day(day)
+			.map_err(|_| format!("invalid date: {}-{}-{}", year, month.to_number(), day))?;
+		Ok(PartialDate::Day(date))
 	}
 }
 

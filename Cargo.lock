@@ -42,6 +42,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "gregorian"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38b704895bc84fce9683aa7fe2f4379fbca45449fcad6718e2d39bdc403afa91"
+
+[[package]]
 name = "heck"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -243,6 +249,7 @@ checksum = "9fc79f4a1e39857fc00c3f662cbf2651c771f00e9c15fe2abc341806bd46bd71"
 name = "zzp"
 version = "0.1.0"
 dependencies = [
+ "gregorian",
  "structopt",
  "yansi",
 ]

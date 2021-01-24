@@ -1,4 +1,5 @@
-use super::date::Date;
+use gregorian::Date;
+
 use super::types::Account;
 use super::types::Cents;
 use super::types::Mutation;
@@ -43,7 +44,7 @@ impl<'a> Transaction<'a> {
 		}
 
 		// Parse the date.
-		let date = Date::parse_from_str(date).map_err(|_| InvalidTransactionHeaderDetails::InvalidDate.for_token(date))?;
+		let date: Date = date.parse().map_err(|_| InvalidTransactionHeaderDetails::InvalidDate.for_token(date))?;
 
 		// Parse tags and mutations until there are none left.
 		let mut tags = Vec::new();
