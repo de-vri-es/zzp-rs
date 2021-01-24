@@ -12,7 +12,7 @@ edition = "2018"
 gregorian = "0.2.0"
 
 [dev-dependencies]
-assert2 = "0.2.1"
+assert2 = "0.3.3"
 
 [workspace]
 members = ["tools"]
