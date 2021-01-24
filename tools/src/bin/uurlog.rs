@@ -1,27 +1,71 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use structopt::clap;
 use yansi::Paint;
 use std::fmt::Display;
 
 use zzp::partial_date::PartialDate;
+use zzp::uurlog::{Entry, Hours};
 
 #[derive(StructOpt)]
 #[structopt(setting = clap::AppSettings::DeriveDisplayOrder)]
 #[structopt(setting = clap::AppSettings::UnifiedHelpMessage)]
 #[structopt(setting = clap::AppSettings::ColoredHelp)]
+#[structopt(setting = clap::AppSettings::VersionlessSubcommands)]
 struct Options {
 	#[structopt(long, short)]
 	#[structopt(parse(from_occurrences))]
+	#[structopt(global = true)]
 	verbose: i8,
 
-	/// Synchronize logged hours to Paymo.
+	#[structopt(subcommand)]
+	command: Command,
+}
+
+#[derive(StructOpt)]
+enum Command {
+	Show(ShowOptions),
+	Invoice(InvoiceOptions),
+}
+
+#[derive(StructOpt)]
+#[structopt(setting = clap::AppSettings::DeriveDisplayOrder)]
+#[structopt(setting = clap::AppSettings::UnifiedHelpMessage)]
+#[structopt(setting = clap::AppSettings::ColoredHelp)]
+struct ShowOptions {
+	/// The file with hour log entries.
+	#[structopt(long, short)]
+	#[structopt(global = true)]
+	#[structopt(value_name = "FILE")]
 	file: PathBuf,
 
 	/// The period to synchronize.
 	#[structopt(long)]
+	#[structopt(global = true)]
 	#[structopt(value_name = "YYYY[-MM[-DD]]")]
 	period: Option<PartialDate>,
+}
+
+#[derive(StructOpt)]
+#[structopt(setting = clap::AppSettings::DeriveDisplayOrder)]
+#[structopt(setting = clap::AppSettings::UnifiedHelpMessage)]
+#[structopt(setting = clap::AppSettings::ColoredHelp)]
+struct InvoiceOptions {
+	/// The file with hour log entries.
+	#[structopt(long, short)]
+	#[structopt(global = true)]
+	#[structopt(value_name = "FILE")]
+	file: PathBuf,
+
+	/// The period to synchronize.
+	#[structopt(long)]
+	#[structopt(global = true)]
+	#[structopt(value_name = "YYYY[-MM[-DD]]")]
+	period: Option<PartialDate>,
+
+	/// The template to use for generating the invoice.
+	#[structopt(long, short)]
+	template: PathBuf,
 }
 
 fn main() {
@@ -51,18 +95,16 @@ fn init_logging(verbosity: i8) {
 }
 
 fn do_main(options: Options) -> Result<(), ()> {
-	// Read all entries from the hour log.
-	let mut entries = zzp::uurlog::parse_file(&options.file)
-		.map_err(|e| log::error!("failed to read {}: {}", options.file.display(), e))?;
-
-	// Filter on date.
-	if let Some(period) = options.period {
-		let period = period.as_range();
-		entries.retain(|x| period.contains(&x.date));
+	match options.command {
+		Command::Show(x) => show_entries(x),
+		Command::Invoice(x) => make_invoice(x),
 	}
+}
 
-	let mut total = zzp::uurlog::Hours::from_minutes(0);
-	for entry in &entries {
+fn show_entries(options: ShowOptions) -> Result<(), ()> {
+	let entries = read_uurlog(&options.file, options.period)?;
+	let mut total = Hours::from_minutes(0);
+	for entry in entries {
 		total += entry.hours;
 		println!("{date}, {hours}, {tags}{description}",
 			date = Paint::cyan(entry.date),
@@ -74,8 +116,25 @@ fn do_main(options: Options) -> Result<(), ()> {
 
 	println!();
 	println!("{} {}", Paint::default("Total time:").bold(), Paint::yellow(total));
-
 	Ok(())
+}
+
+fn make_invoice(options: InvoiceOptions) -> Result<(), ()> {
+	todo!();
+}
+
+fn read_uurlog(path: &Path, period: Option<PartialDate>) -> Result<Vec<Entry>, ()> {
+	// Read all entries from the hour log.
+	let mut entries = zzp::uurlog::parse_file(path)
+		.map_err(|e| log::error!("failed to read {}: {}", path.display(), e))?;
+
+	// Filter on date.
+	if let Some(period) = period {
+		let period = period.as_range();
+		entries.retain(|x| period.contains(&x.date));
+	}
+
+	Ok(entries)
 }
 
 fn format_iterator<I, Pre, Sep, Post>(iter: I, pre: Pre, sep: Sep, post: Post) -> FormatIterator<I::IntoIter, Pre, Sep, Post>
