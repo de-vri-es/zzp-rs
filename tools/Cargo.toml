@@ -3,6 +3,8 @@ name = "zzp-tools"
 description = "bookkeeping tools for freelancers"
 version = "0.1.0"
 authors = ["Maarten de Vries <maarten@de-vri.es>"]
+license = "BSD-2-Clause"
+
 edition = "2018"
 
 [dependencies]
