@@ -6,6 +6,9 @@ use std::fmt::Display;
 
 use zzp::partial_date::PartialDate;
 use zzp::uurlog::{Entry, Hours};
+use zzp::gregorian::Date;
+
+mod invoice;
 
 #[derive(StructOpt)]
 #[structopt(setting = clap::AppSettings::DeriveDisplayOrder)]
@@ -35,13 +38,11 @@ enum Command {
 struct ShowOptions {
 	/// The file with hour log entries.
 	#[structopt(long, short)]
-	#[structopt(global = true)]
 	#[structopt(value_name = "FILE")]
 	file: PathBuf,
 
 	/// The period to synchronize.
 	#[structopt(long)]
-	#[structopt(global = true)]
 	#[structopt(value_name = "YYYY[-MM[-DD]]")]
 	period: Option<PartialDate>,
 }
@@ -53,19 +54,40 @@ struct ShowOptions {
 struct InvoiceOptions {
 	/// The file with hour log entries.
 	#[structopt(long, short)]
-	#[structopt(global = true)]
 	#[structopt(value_name = "FILE")]
 	file: PathBuf,
 
 	/// The period to synchronize.
 	#[structopt(long)]
-	#[structopt(global = true)]
 	#[structopt(value_name = "YYYY[-MM[-DD]]")]
 	period: Option<PartialDate>,
 
 	/// The template to use for generating the invoice.
 	#[structopt(long, short)]
 	template: PathBuf,
+
+	/// The invoice number to use.
+	#[structopt(long)]
+	number: String,
+
+	/// Add a single invoice entry per day with the given summary.
+	#[structopt(long)]
+	summarize_days: bool,
+
+	/// The unit to display for time log entries on the invoice.
+	#[structopt(long)]
+	#[structopt(default_value = "hours")]
+	unit: String,
+
+	/// The price per hour in cents.
+	#[structopt(long)]
+	#[structopt(value_name = "CENTS")]
+	price_per_hour: u32,
+
+	/// The VAT percentage.
+	#[structopt(long)]
+	#[structopt(value_name = "PERCENTAGE")]
+	vat: u32,
 }
 
 fn main() {
@@ -97,7 +119,7 @@ fn init_logging(verbosity: i8) {
 fn do_main(options: Options) -> Result<(), ()> {
 	match options.command {
 		Command::Show(x) => show_entries(x),
-		Command::Invoice(x) => make_invoice(x),
+		Command::Invoice(x) => invoice::make_invoice(x),
 	}
 }
 
@@ -119,14 +141,10 @@ fn show_entries(options: ShowOptions) -> Result<(), ()> {
 	Ok(())
 }
 
-fn make_invoice(options: InvoiceOptions) -> Result<(), ()> {
-	todo!();
-}
-
 fn read_uurlog(path: &Path, period: Option<PartialDate>) -> Result<Vec<Entry>, ()> {
 	// Read all entries from the hour log.
 	let mut entries = zzp::uurlog::parse_file(path)
-		.map_err(|e| log::error!("failed to read {}: {}", path.display(), e))?;
+		.map_err(|e| log::error!("failed to read hour entries from {}: {}", path.display(), e))?;
 
 	// Filter on date.
 	if let Some(period) = period {
