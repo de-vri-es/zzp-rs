@@ -6,3 +6,6 @@ authors = ["Maarten de Vries <maarten@de-vri.es>"]
 edition = "2018"
 
 [dependencies]
+gregorian = "0.2.0"
+structopt = "0.3.9"
+yansi = "0.5.0"
