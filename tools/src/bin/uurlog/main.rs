@@ -6,7 +6,6 @@ use std::fmt::Display;
 
 use zzp::partial_date::PartialDate;
 use zzp::uurlog::{Entry, Hours};
-use zzp::gregorian::Date;
 
 mod invoice;
 
@@ -28,7 +27,7 @@ struct Options {
 #[derive(StructOpt)]
 enum Command {
 	Show(ShowOptions),
-	Invoice(InvoiceOptions),
+	Invoice(invoice::InvoiceOptions),
 }
 
 #[derive(StructOpt)]
@@ -45,49 +44,6 @@ struct ShowOptions {
 	#[structopt(long)]
 	#[structopt(value_name = "YYYY[-MM[-DD]]")]
 	period: Option<PartialDate>,
-}
-
-#[derive(StructOpt)]
-#[structopt(setting = clap::AppSettings::DeriveDisplayOrder)]
-#[structopt(setting = clap::AppSettings::UnifiedHelpMessage)]
-#[structopt(setting = clap::AppSettings::ColoredHelp)]
-struct InvoiceOptions {
-	/// The file with hour log entries.
-	#[structopt(long, short)]
-	#[structopt(value_name = "FILE")]
-	file: PathBuf,
-
-	/// The period to synchronize.
-	#[structopt(long)]
-	#[structopt(value_name = "YYYY[-MM[-DD]]")]
-	period: Option<PartialDate>,
-
-	/// The template to use for generating the invoice.
-	#[structopt(long, short)]
-	template: PathBuf,
-
-	/// The invoice number to use.
-	#[structopt(long)]
-	number: String,
-
-	/// Add a single invoice entry per day with the given summary.
-	#[structopt(long)]
-	summarize_days: bool,
-
-	/// The unit to display for time log entries on the invoice.
-	#[structopt(long)]
-	#[structopt(default_value = "hours")]
-	unit: String,
-
-	/// The price per hour in cents.
-	#[structopt(long)]
-	#[structopt(value_name = "CENTS")]
-	price_per_hour: u32,
-
-	/// The VAT percentage.
-	#[structopt(long)]
-	#[structopt(value_name = "PERCENTAGE")]
-	vat: u32,
 }
 
 fn main() {
@@ -112,7 +68,7 @@ fn init_logging(verbosity: i8) {
 		log::LevelFilter::Trace
 	};
 
-	let main_module = env!("CARGO_PKG_NAME").replace("-", "_");
+	let main_module = env!("CARGO_BIN_NAME").replace("-", "_");
 	env_logger::from_env("RUST_LOG").filter_module(&main_module, level).init();
 }
 

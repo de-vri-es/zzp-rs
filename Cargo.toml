@@ -9,7 +9,7 @@ keywords = ["bookkeeping", "freelancer", "contractor", "ledger"]
 edition = "2018"
 
 [dependencies]
-gregorian = "0.2.0"
+gregorian = "0.2.1"
 
 [dev-dependencies]
 assert2 = "0.3.3"
