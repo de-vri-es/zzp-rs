@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use ordered_float::NotNan;
+
+pub mod invoice;
 
 /// Main configuration file for the ZZP tools.
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -11,8 +14,14 @@ pub struct ZzpConfig {
 	/// The tax details.
 	pub tax: Tax,
 
-	/// Localization details.
-	pub localization: Localization,
+	/// Cosmetic invoice options.
+	pub invoice: Invoice,
+
+	/// Invoice localization details.
+	pub invoice_localization: InvoiceLocalization,
+
+	/// Date localization details.
+	pub date_localization: DateLocalization,
 }
 
 /// Configuration file for specific customers.
@@ -49,7 +58,17 @@ pub struct Company {
 #[serde(deny_unknown_fields)]
 pub struct Tax {
 	/// Default VAT percentage for delivered goods/services.
-	pub vat: u32,
+	pub vat: NotNan<f64>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Invoice {
+	/// The font to use for generated invoices.
+	font: String,
+
+	/// The base font size to use for generated invoices.
+	font_size: NotNan<f64>,
 }
 
 /// Customer details.
@@ -64,29 +83,57 @@ pub struct Customer {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct CustomerInvoice {
-	/// The path to the invoice template.
-	pub template: PathBuf,
-
-	/// The price per hour in cents.
-	pub cents_per_hour: u32,
+	/// The price per hour in money units (euro, yen, dollar, ...).
+	pub price_per_hour: NotNan<f64>,
 
 	/// Summarize all hours per day with a single entry.
 	pub summarize_per_day: Option<String>,
 }
 
-/// Localizaton details for generated content.
+/// Localizaton details for invoices.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Localization {
-	/// Translation for the word "invoice".
+pub struct InvoiceLocalization {
+	/// Translation for "Invoice".
 	pub invoice: String,
-
-	/// Translation for the word "hours".
+	/// Translations for "To" for the recipient prefix.
+	pub to: String,
+	/// Translations for "From" for the sender prefix.
+	pub from: String,
+	/// Translation for "Invoice number".
+	pub invoice_number: String,
+	/// Translation for "Invoice date".
+	pub invoice_date: String,
+	/// Translation for "Date".
+	pub date: String,
+	/// Translation for "Description".
+	pub description: String,
+	/// Translation for "Quantity".
+	pub quantity: String,
+	/// Translation for "Price per unit".
+	pub entry_unit_price: String,
+	/// Translation for "Total price".
+	pub entry_total_price: String,
+	/// Translation for "VAT".
+	pub vat: String,
+	/// Translations for "Total without VAT".
+	pub total_ex_vat: String,
+	/// Translations for "Total VAT".
+	pub total_vat: String,
+	/// Translation for "Total due".
+	pub total_due: String,
+	/// Translation for "hours".
 	pub hours: String,
+	/// The currency symbol.
+	pub currency_symbol: String,
+	/// The footer asking the recipient to please pay on time.
+	pub footer: String,
+}
 
-	/// The sign for money.
-	pub money_sign: String,
-
+/// Localizaton details for dates.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DateLocalization {
 	pub january: String,
 	pub february: String,
 	pub march: String,
