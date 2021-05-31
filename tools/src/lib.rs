@@ -33,6 +33,10 @@ pub struct CustomerConfig {
 
 	/// Details on how to invoice the customer.
 	pub invoice: CustomerInvoice,
+
+	/// Details on tags for hour entries related to invoicing.
+	#[serde(default = "Vec::new", skip_serializing_if = "Vec::is_empty")]
+	pub tag: Vec<TagConfig>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -88,6 +92,23 @@ pub struct CustomerInvoice {
 
 	/// Summarize all hours per day with a single entry.
 	pub summarize_per_day: Option<String>,
+}
+
+	/// Details on tags for hour entries related to invoicing.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct TagConfig {
+	/// Thename of the tag.
+	pub name: String,
+
+	/// The price per hour in money units (euro, yen, dollar, ...).
+	pub price_per_hour: Option<NotNan<f64>>,
+
+	/// Summarize all hours per day with a single entry.
+	pub summarize_per_day: Option<String>,
+
+	/// VAT percentage for tagged entries.
+	pub vat: Option<NotNan<f64>>,
 }
 
 /// Localizaton details for invoices.

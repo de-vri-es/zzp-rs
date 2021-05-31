@@ -1,4 +1,5 @@
 use ordered_float::NotNan;
+use std::collections::{btree_map, BTreeMap};
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use structopt::clap;
@@ -85,22 +86,42 @@ pub(crate) fn make_invoice(options: InvoiceOptions) -> Result<(), ()> {
 	let vat_percentage = options.vat.unwrap_or(zzp_config.tax.vat);
 	let summarize_days = options.summarize_days
 		.as_deref()
-		.or(customer_config.invoice.summarize_per_day.as_deref());
+		.or_else(|| customer_config.invoice.summarize_per_day.as_deref());
 	let output = options.output.clone().unwrap_or_else(|| {
 		generate_invoice_file_name(&customer_root_dir, &options.number, &zzp_config)
 	});
 
 	// Read hour entries.
-	let entries = read_uurlog(&file, Some(options.period))?;
+	let hour_entries = read_uurlog(&file, Some(options.period))?;
+
+	// Split hour entries on tags that we care about.
+	let mut tagged_hour_entries = BTreeMap::new();
+	let mut untagged_hour_entries = Vec::new();
+	for tag in &customer_config.tag {
+		tagged_hour_entries.insert(tag.name.as_str(), Vec::new());
+	}
+
+	'entries:
+	for entry in hour_entries {
+		for tag in &entry.tags {
+			if let Some(tagged_entries) = tagged_hour_entries.get_mut(tag.as_str()) {
+				tagged_entries.push(entry);
+				continue 'entries;
+			}
+		}
+		untagged_hour_entries.push(entry);
+	}
+
+	let mut invoice_entries = Vec::new();
 
 	// Summarize entries per day, if requested.
-	let entries = if let Some(description) = summarize_days {
-		summarize_hours_per_day(&entries, description)
+	let untagged_hour_entries = if let Some(description) = summarize_days {
+		summarize_hours_per_day(untagged_hour_entries, description)
 	} else {
-		entries
+		untagged_hour_entries
 	};
 
-	let entries: Vec<_> = entries.into_iter().map(|entry| {
+	invoice_entries.extend(untagged_hour_entries.into_iter().map(|entry| {
 		zzp_tools::invoice::InvoiceEntry {
 			description: entry.description,
 			quantity: NotNan::new(f64::from(entry.hours.total_minutes()) / 60.0).unwrap(),
@@ -109,7 +130,27 @@ pub(crate) fn make_invoice(options: InvoiceOptions) -> Result<(), ()> {
 			unit_price,
 			vat_percentage,
 		}
-	}).collect();
+	}));
+
+	for tag in &customer_config.tag {
+		let hour_entries = if let Some(description) = &tag.summarize_per_day {
+			summarize_hours_per_day(tagged_hour_entries.get(tag.name.as_str()).unwrap(), description)
+		} else {
+			tagged_hour_entries.get(tag.name.as_str()).unwrap().clone()
+		};
+		invoice_entries.extend(hour_entries.into_iter().map(|entry| {
+			zzp_tools::invoice::InvoiceEntry {
+				description: entry.description,
+				quantity: NotNan::new(f64::from(entry.hours.total_minutes()) / 60.0).unwrap(),
+				unit: unit.to_string(),
+				date: entry.date,
+				unit_price: tag.price_per_hour.unwrap_or(unit_price),
+				vat_percentage: tag.vat.unwrap_or(vat_percentage),
+			}
+		}));
+	}
+
+	invoice_entries.sort_by(|a, b| a.date.cmp(&b.date));
 
 	if let Some(parent) = output.parent() {
 		std::fs::create_dir_all(parent)
@@ -131,18 +172,22 @@ pub(crate) fn make_invoice(options: InvoiceOptions) -> Result<(), ()> {
 		&customer_config.customer,
 		&options.number,
 		date,
-		&entries,
+		&invoice_entries,
 	)
 		.map_err(|e| log::error!("{}", e))?;
 
 	Ok(())
 }
 
-fn summarize_hours_per_day(entries: &[zzp::uurlog::Entry], description: &str) -> Vec<zzp::uurlog::Entry> {
-	use std::collections::{BTreeMap, btree_map};
-
+fn summarize_hours_per_day<I>(entries: I, description: &str) -> Vec<zzp::uurlog::Entry>
+where
+	I: IntoIterator,
+	I::Item: std::borrow::Borrow<zzp::uurlog::Entry>,
+{
+	use std::borrow::Borrow;
 	let mut entries_per_day = BTreeMap::new();
 	for entry in entries {
+		let entry = entry.borrow();
 		match entries_per_day.entry(entry.date) {
 			btree_map::Entry::Vacant(x) => {
 				x.insert(entry.hours);
