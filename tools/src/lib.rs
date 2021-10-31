@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use ordered_float::NotNan;
 
 pub mod invoice;
+pub mod grootboek;
 
 /// Main configuration file for the ZZP tools.
 #[derive(Debug, Clone, Deserialize, Serialize)]

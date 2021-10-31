@@ -7,6 +7,7 @@ use zzp::partial_date::PartialDate;
 use zzp::grootboek::Account;
 use zzp::grootboek::Cents;
 use zzp::grootboek::Transaction;
+use zzp_tools::grootboek::color_cents;
 
 #[derive(StructOpt)]
 #[structopt(setting = AppSettings::ColoredHelp)]
@@ -76,7 +77,7 @@ fn do_main(options: &Options) -> Result<(), String> {
 	if options.check {
 		let mut unbalanced_transactions = 0;
 		for (transaction, balance) in find_unbalanced(transactions) {
-			print_full(&transaction);
+			zzp_tools::grootboek::print_full(&transaction);
 			println!("{prefix} {balance}",
 				prefix = Paint::red("Unbalanced amount:").bold(),
 				balance = color_cents(balance),
@@ -107,35 +108,6 @@ fn main() {
 	if let Err(error) = do_main(&Options::from_args()) {
 		eprintln!("Error: {}", error);
 		std::process::exit(1);
-	}
-}
-
-fn color_cents(cents: Cents) -> yansi::Paint<Cents> {
-	if cents.total_cents() > 0 {
-		yansi::Color::Green.style().paint(cents)
-	} else if cents.total_cents() < 0 {
-		yansi::Color::Red.style().paint(cents)
-	} else {
-		yansi::Color::Fixed(241).paint(cents)
-	}
-}
-
-fn print_full(transaction: &Transaction) {
-	println!("{date}: {desc}",
-		date = Paint::cyan(transaction.date),
-		desc = Paint::magenta(transaction.description),
-	);
-	for tag in &transaction.tags {
-		println!("{label}: {value}",
-			label = Paint::cyan(tag.label),
-			value = Paint::cyan(tag.value),
-		);
-	}
-	for mutation in &transaction.mutations {
-		println!("{amount} {account}",
-			amount  = color_cents(mutation.amount),
-			account = mutation.account,
-		);
 	}
 }
 
