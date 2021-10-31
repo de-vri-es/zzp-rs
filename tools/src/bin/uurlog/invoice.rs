@@ -1,4 +1,5 @@
 use ordered_float::NotNan;
+use dynfmt::{Format, SimpleCurlyFormat};
 use std::collections::{btree_map, BTreeMap};
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
@@ -87,8 +88,16 @@ pub(crate) fn make_invoice(options: InvoiceOptions) -> Result<(), ()> {
 	let summarize_days = options.summarize_days
 		.as_deref()
 		.or_else(|| customer_config.invoice.summarize_per_day.as_deref());
+
+	let args: std::collections::BTreeMap<_, _> = [
+		("year", date.year().to_string()),
+		("month", format!("{:02}", date.month().to_number())),
+		("day", format!("{:02}", date.day())),
+	].into_iter().collect();
+	let invoice_directory = SimpleCurlyFormat.format(&zzp_config.invoice.directory, &args)
+		.map_err(|e| log::error!("failed to expand invoice directory: {}", e))?;
 	let output = options.output.clone().unwrap_or_else(|| {
-		generate_invoice_file_name(&customer_root_dir, &options.number, &zzp_config)
+		generate_invoice_file_name(root_dir.join(&*invoice_directory), &options.number, &zzp_config)
 	});
 
 	// Read hour entries.
@@ -208,12 +217,12 @@ where
 	}).collect()
 }
 
-fn generate_invoice_file_name(customer_root_dir: &Path, number: &str, config: &ZzpConfig) -> PathBuf {
+fn generate_invoice_file_name(invoice_dir: impl AsRef<Path>, number: &str, config: &ZzpConfig) -> PathBuf {
 	let mut invoice = config.invoice_localization.invoice.clone();
 	unsafe {
 		invoice.as_bytes_mut()[0].make_ascii_uppercase();
 	}
-	customer_root_dir.join(format!("invoices/{number}/{company} - {invoice} {number}.pdf",
+	invoice_dir.as_ref().join(format!("{company} - {invoice} {number}.pdf",
 		company = config.company.name,
 		number = number,
 		invoice = invoice,

@@ -69,10 +69,13 @@ pub struct Tax {
 #[serde(deny_unknown_fields)]
 pub struct Invoice {
 	/// The font to use for generated invoices.
-	font: String,
+	pub font: String,
 
 	/// The base font size to use for generated invoices.
-	font_size: NotNan<f64>,
+	pub font_size: NotNan<f64>,
+
+	/// The directory to save invoices.
+	pub directory: String,
 }
 
 /// Customer details.
