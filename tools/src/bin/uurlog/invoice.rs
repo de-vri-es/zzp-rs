@@ -74,7 +74,7 @@ pub(crate) fn make_invoice(options: InvoiceOptions) -> Result<(), ()> {
 	let customer_root_dir = customer_config_path.parent().unwrap();
 
 	// Read configuration files.
-	let zzp_config = ZzpConfig::read_file(zzp_config_path)
+	let zzp_config = ZzpConfig::read_file(&zzp_config_path)
 		.map_err(|e| log::error!("{}", e))?;
 	let customer_config = CustomerConfig::read_file(&customer_config_path)
 		.map_err(|e| log::error!("{}", e))?;
@@ -94,6 +94,13 @@ pub(crate) fn make_invoice(options: InvoiceOptions) -> Result<(), ()> {
 		("month", format!("{:02}", date.month().to_number())),
 		("day", format!("{:02}", date.day())),
 	].into_iter().collect();
+
+	let grootboek_path = SimpleCurlyFormat.format(&zzp_config.grootboek.path, &args)
+		.map_err(|e| log::error!("failed to expand grootboek path: {}", e))?;
+	let grootboek_path = root_dir.join(&*grootboek_path);
+	let grootboek_dir = grootboek_path.parent()
+		.ok_or_else(|| log::error!("failed to determine parent directory of {}", grootboek_path.display()))?;
+
 	let invoice_directory = SimpleCurlyFormat.format(&zzp_config.invoice.directory, &args)
 		.map_err(|e| log::error!("failed to expand invoice directory: {}", e))?;
 	let output = options.output.clone().unwrap_or_else(|| {
@@ -122,6 +129,15 @@ pub(crate) fn make_invoice(options: InvoiceOptions) -> Result<(), ()> {
 	}
 
 	let mut invoice_entries = Vec::new();
+
+	let invoice_tag_value = output.strip_prefix(grootboek_dir)
+		.map_err(|_| {
+			log::error!("invoice path is not below the folder of the grootboek file");
+			dbg!(&output);
+			dbg!(&grootboek_dir);
+		})?
+		.display()
+		.to_string();
 
 	// Summarize entries per day, if requested.
 	let untagged_hour_entries = if let Some(description) = summarize_days {
@@ -161,6 +177,82 @@ pub(crate) fn make_invoice(options: InvoiceOptions) -> Result<(), ()> {
 
 	invoice_entries.sort_by(|a, b| a.date.cmp(&b.date));
 
+	let quarter;
+	if date.month() >= zzp::gregorian::October {
+		quarter = 4;
+	} else if date.month() >= zzp::gregorian::July {
+		quarter = 3;
+	} else if date.month() >= zzp::gregorian::April {
+		quarter = 2;
+	} else {
+		quarter = 1;
+	}
+
+	let format_args: BTreeMap<_, _> = [
+		("year", date.year().to_string()),
+		("month", format!("{:02}", date.month().to_number())),
+		("day", format!("{:02}", date.day())),
+		("quarter", quarter.to_string()),
+		("debitor", customer_config.customer.grootboek_name.clone()),
+		("invoice_number", options.number.clone()),
+	].into_iter().collect();
+
+	let mut total_ex_vat = 0.0;
+	let mut total_vat = BTreeMap::new();
+	for entry in &invoice_entries {
+		total_ex_vat += entry.total_ex_vat().into_inner();
+		let vat = total_vat.entry(entry.vat_percentage).or_insert(0.0);
+		*vat += entry.total_vat_only().into_inner();
+	}
+
+	let total_vat: BTreeMap<_, _> = total_vat.into_iter().map(|(key, value)| {
+		let mut format_args = format_args.clone();
+		format_args.insert("percentage", key.to_string());
+
+		let key = SimpleCurlyFormat.format(&zzp_config.grootboek.vat_account, format_args)
+			.map_err(|e| log::error!("failed to expand VAT account: {}", e))?;
+		let value = zzp::grootboek::Cents((value * 100.0).round() as i32);
+		Ok((key, value))
+	}).collect::<Result<_, _>>()?;
+
+	let total_vat_all = total_vat.values().sum();
+	let total_ex_vat = zzp::grootboek::Cents((total_ex_vat * 100.0).round() as i32);
+
+	let description = SimpleCurlyFormat.format(&zzp_config.invoice.grootboek_description, &format_args)
+		.map_err(|e| log::error!("failed to expand grootboek description: {}", e))?;
+	let debitor_account = SimpleCurlyFormat.format(&zzp_config.grootboek.debitor_account, &format_args)
+		.map_err(|e| log::error!("failed to expand debitor account: {}", e))?;
+	let revenue_account = SimpleCurlyFormat.format(&zzp_config.grootboek.revenue_account, &format_args)
+		.map_err(|e| log::error!("failed to expand revenue account: {}", e))?;
+
+	let mut grootboek_entry = zzp::grootboek::Transaction {
+		date,
+		description: &description,
+		tags: vec![
+			zzp::grootboek::Tag {
+				label: &zzp_config.invoice.grootboek_tag,
+				value: &invoice_tag_value,
+			},
+		],
+		mutations: vec![
+			zzp::grootboek::Mutation {
+				amount: total_ex_vat + total_vat_all,
+				account: zzp::grootboek::Account::from_raw(&debitor_account),
+			},
+			zzp::grootboek::Mutation {
+				amount: -total_ex_vat,
+				account: zzp::grootboek::Account::from_raw(&revenue_account),
+			},
+		],
+	};
+
+	for (account, &amount) in &total_vat {
+		grootboek_entry.mutations.push(zzp::grootboek::Mutation {
+			account: zzp::grootboek::Account::from_raw(account),
+			amount: -amount,
+		})
+	}
+
 	if let Some(parent) = output.parent() {
 		std::fs::create_dir_all(parent)
 			.map_err(|e| log::error!("failed to create directory {}: {}", parent.display(), e))?;
@@ -184,6 +276,8 @@ pub(crate) fn make_invoice(options: InvoiceOptions) -> Result<(), ()> {
 		&invoice_entries,
 	)
 		.map_err(|e| log::error!("{}", e))?;
+
+	zzp_tools::grootboek::print_full(&grootboek_entry);
 
 	Ok(())
 }
