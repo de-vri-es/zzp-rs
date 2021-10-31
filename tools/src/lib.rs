@@ -12,6 +12,9 @@ pub struct ZzpConfig {
 	/// The company details.
 	pub company: Company,
 
+	/// Details regarding the grootboek.
+	pub grootboek: GrootboekConfig,
+
 	/// The tax details.
 	pub tax: Tax,
 
@@ -61,6 +64,31 @@ pub struct Company {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
+pub struct GrootboekConfig {
+	/// The path to the grootboek file.
+	pub path: String,
+
+	/// The grootboek account to put revenue on.
+	pub revenue_account: String,
+
+	/// The grootboek account to put debts from debitors on.
+	pub debitor_account: String,
+
+	/// The grootboek account to put debts to creditors on.
+	pub creditor_account: String,
+
+	/// The grootboek account to put VAT debts on.
+	pub vat_account: String,
+
+	/// The grootboek account to put paid VAT input tax on.
+	///
+	/// The VAT input tax is paid when you purchase goods and services,
+	/// and can be deducated from the VAT debt.
+	pub vat_input_account: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Tax {
 	/// Default VAT percentage for delivered goods/services.
 	pub vat: NotNan<f64>,
@@ -77,6 +105,12 @@ pub struct Invoice {
 
 	/// The directory to save invoices.
 	pub directory: String,
+
+	/// The description to use for the generated grootboek transaction.
+	pub grootboek_description: String,
+
+	/// The tag to use to link the invoice file to a transaction.
+	pub grootboek_tag: String,
 }
 
 /// Customer details.
@@ -85,6 +119,7 @@ pub struct Invoice {
 pub struct Customer {
 	pub name: String,
 	pub address: Vec<String>,
+	pub grootboek_name: String,
 }
 
 /// Details on how to invoice a customer.
