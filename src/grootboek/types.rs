@@ -72,6 +72,35 @@ impl std::ops::AddAssign<&Cents> for Cents {
 	}
 }
 
+impl std::ops::Neg for Cents {
+	type Output = Self;
+
+	fn neg(self) -> Self {
+		let Self(cents) = self;
+		Self(-cents)
+	}
+}
+
+impl std::iter::Sum for Cents {
+	fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+		let mut total = Self(0);
+		for item in iter {
+			total += item;
+		}
+		total
+	}
+}
+
+impl<'a> std::iter::Sum<&'a Self> for Cents {
+	fn sum<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
+		let mut total = Self(0);
+		for item in iter {
+			total += item;
+		}
+		total
+	}
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Account<'a> {
 	pub raw: &'a str,
@@ -137,7 +166,7 @@ impl<'a> Iterator for AccountParents<'a> {
 
 	fn next(&mut self) -> Option<Self::Item> {
 		self.current = self.current.and_then(|x| x.parent());
-		self.current.clone()
+		self.current
 	}
 }
 
