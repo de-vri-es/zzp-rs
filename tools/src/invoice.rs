@@ -15,6 +15,20 @@ pub struct InvoiceEntry {
 	pub vat_percentage: NotNan<f64>,
 }
 
+impl InvoiceEntry {
+	pub fn total_ex_vat(&self) -> NotNan<f64> {
+		self.quantity * self.unit_price
+	}
+
+	pub fn total_vat_only(&self) -> NotNan<f64> {
+		self.quantity * self.unit_price * self.vat_percentage * 0.01
+	}
+
+	pub fn total_inc_vat(&self) -> NotNan<f64> {
+		self.quantity * self.unit_price * (self.vat_percentage * 0.01 + 1.0)
+	}
+}
+
 pub fn make_invoice<W>(
 	stream: W,
 	config: &ZzpConfig,
@@ -65,7 +79,7 @@ where
 		table.add_cell(&recipient.name, &basic)?;
 		for line in &recipient.address {
 			table.add_cell("", &basic_right)?;
-			table.add_cell(&line, &basic)?;
+			table.add_cell(line, &basic)?;
 		}
 
 		let table = table.build();
@@ -87,7 +101,7 @@ where
 		table.add_cell(&config.company.name, &basic)?;
 		for line in &config.company.address {
 			table.add_cell("", &basic_right)?;
-			table.add_cell(&line, &basic)?;
+			table.add_cell(line, &basic)?;
 		}
 
 		table.add_cell("", &basic)?;
