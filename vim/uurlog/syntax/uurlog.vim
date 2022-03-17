@@ -3,8 +3,6 @@ if exists("b:current_syntax")
 endif
 
 syn match uurlogLineStart "^" nextgroup=uurlogComment,uurlogDate skipwhite
-syn match uurlogComment "#.*" contains=uurlogTodo contained
-syn keyword uurlogTodo TODO contained
 
 syn match uurlogDesc "\S.+" contained
 syn match uurlogTag "\[.\{-}\]" nextgroup=uurlogTag,uurlogDesc skipwhite contained
@@ -14,6 +12,8 @@ syn match uurlogMinutes "\d\+m" nextgroup=uurlogTimeEnd contained
 syn match uurlogHours "\d\+h" nextgroup=uurlogMinutes,uurlogTimeEnd contained
 syn match uurlogDateSep "," nextgroup=uurlogHours skipwhite contained
 syn match uurlogDate "^\d\d\d\d-\d\d\?-\d\d\?" nextgroup=uurlogDateSep skipwhite contained
+syn match uurlogComment "#.*" contains=uurlogTodo contained
+syn keyword uurlogTodo TODO contained
 
 hi def link uurlogComment Comment
 hi def link uurlogTodo Todo
