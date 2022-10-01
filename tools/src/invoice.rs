@@ -174,7 +174,7 @@ where
 
 			table.add_cell(&format_date(entry.date, &config.date_localization), &basic_right)?;
 			table.add_cell(&entry.description, &basic)?;
-			table.add_cell(&format!("{:.01} {}", entry.quantity, entry.unit), &basic_right)?;
+			table.add_cell(&format!("{:.02} {}", entry.quantity, entry.unit), &basic_right)?;
 			table.add_cell(&format!("{} {:.02}", lang.currency_symbol, entry.unit_price), &basic_right)?;
 			table.add_cell(&format!("{} {:.02}", lang.currency_symbol, price), &basic_right)?;
 			table.add_cell(&format!("{}%", entry.vat_percentage), &basic_right)?;
