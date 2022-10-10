@@ -18,18 +18,20 @@ pub struct InvoiceOptions {
 	/// The period to create an invoice for.
 	#[structopt(long)]
 	#[structopt(value_name = "YYYY[-MM[-DD]]")]
+	#[structopt(group = "period-group")]
 	period: Option<PartialDate>,
 
 	/// Only consider hour entries from this date or later.
 	#[structopt(long)]
 	#[structopt(value_name = "YEAR[-MONTH[-DAY]]")]
-	#[structopt(conflicts_with = "period")]
+	#[structopt(group = "period-group")]
 	start_date: Option<PartialDate>,
 
 	/// Only consider hour entries from this date or earlier.
 	#[structopt(long)]
 	#[structopt(value_name = "YEAR[-MONTH[-DAY]]")]
 	#[structopt(conflicts_with = "period")]
+	#[structopt(requires = "start-date")]
 	end_date: Option<PartialDate>,
 
 	/// The invoice number to use.
