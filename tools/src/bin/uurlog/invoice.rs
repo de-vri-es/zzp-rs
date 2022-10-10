@@ -109,7 +109,7 @@ pub(crate) fn make_invoice(options: InvoiceOptions) -> Result<(), ()> {
 	let vat_percentage = options.vat.unwrap_or(zzp_config.tax.vat);
 	let summarize_days = options.summarize_days
 		.as_deref()
-		.or_else(|| customer_config.invoice.summarize_per_day.as_deref());
+		.or(customer_config.invoice.summarize_per_day.as_deref());
 
 	let args: std::collections::BTreeMap<_, _> = [
 		("year", date.year().to_string()),
