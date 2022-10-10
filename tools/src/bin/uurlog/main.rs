@@ -5,7 +5,7 @@ use yansi::Paint;
 use std::fmt::Display;
 
 use zzp::partial_date::PartialDate;
-use zzp::uurlog::{Entry, Hours};
+use zzp::uurlog::{Date, Entry, Hours};
 
 mod invoice;
 
@@ -44,6 +44,18 @@ struct ShowOptions {
 	#[structopt(long)]
 	#[structopt(value_name = "YYYY[-MM[-DD]]")]
 	period: Option<PartialDate>,
+
+	/// Only consider hour entries from this date or later.
+	#[structopt(long)]
+	#[structopt(value_name = "YEAR[-MONTH[-DAY]]")]
+	#[structopt(conflicts_with = "period")]
+	start_date: Option<PartialDate>,
+
+	/// Only consider hour entries from this date or earlier.
+	#[structopt(long)]
+	#[structopt(value_name = "YEAR[-MONTH[-DAY]]")]
+	#[structopt(conflicts_with = "period")]
+	end_date: Option<PartialDate>,
 }
 
 fn main() {
@@ -80,7 +92,15 @@ fn do_main(options: Options) -> Result<(), ()> {
 }
 
 fn show_entries(options: ShowOptions) -> Result<(), ()> {
-	let entries = read_uurlog(&options.file, options.period)?;
+	let mut start_date = options.start_date.map(|x| x.as_start_date());
+	let mut end_date = options.end_date.map(|x| x.as_end_date().next());
+	if let Some(period) = options.period {
+		let range = period.as_range();
+		start_date = Some(range.start);
+		end_date = Some(range.end);
+	};
+
+	let entries = read_uurlog(&options.file, start_date, end_date)?;
 	let mut total = Hours::from_minutes(0);
 	for entry in entries {
 		total += entry.hours;
@@ -97,15 +117,17 @@ fn show_entries(options: ShowOptions) -> Result<(), ()> {
 	Ok(())
 }
 
-fn read_uurlog(path: &Path, period: Option<PartialDate>) -> Result<Vec<Entry>, ()> {
+fn read_uurlog(path: &Path, start_date: Option<Date>, end_date: Option<Date>) -> Result<Vec<Entry>, ()> {
 	// Read all entries from the hour log.
 	let mut entries = zzp::uurlog::parse_file(path)
 		.map_err(|e| log::error!("failed to read hour entries from {}: {}", path.display(), e))?;
 
 	// Filter on date.
-	if let Some(period) = period {
-		let period = period.as_range();
-		entries.retain(|x| period.contains(&x.date));
+	if let Some(start_date) = start_date {
+		entries.retain(|x| x.date >= start_date);
+	}
+	if let Some(end_date) = end_date {
+		entries.retain(|x| x.date < end_date);
 	}
 
 	Ok(entries)

@@ -18,7 +18,21 @@ pub struct InvoiceOptions {
 	/// The period to create an invoice for.
 	#[structopt(long)]
 	#[structopt(value_name = "YYYY[-MM[-DD]]")]
-	period: PartialDate,
+	#[structopt(group = "period-group")]
+	period: Option<PartialDate>,
+
+	/// Only consider hour entries from this date or later.
+	#[structopt(long)]
+	#[structopt(value_name = "YEAR[-MONTH[-DAY]]")]
+	#[structopt(group = "period-group")]
+	start_date: Option<PartialDate>,
+
+	/// Only consider hour entries from this date or earlier.
+	#[structopt(long)]
+	#[structopt(value_name = "YEAR[-MONTH[-DAY]]")]
+	#[structopt(conflicts_with = "period")]
+	#[structopt(requires = "start-date")]
+	end_date: Option<PartialDate>,
 
 	/// The invoice number to use.
 	#[structopt(long)]
@@ -63,6 +77,14 @@ pub struct InvoiceOptions {
 }
 
 pub(crate) fn make_invoice(options: InvoiceOptions) -> Result<(), ()> {
+	let mut start_date = options.start_date.map(|x| x.as_start_date());
+	let mut end_date = options.end_date.map(|x| x.as_end_date().next());
+	if let Some(period) = options.period {
+		let range = period.as_range();
+		start_date = Some(range.start);
+		end_date = Some(range.end);
+	};
+
 	// Find configuration files.
 	let current_dir = std::env::current_dir()
 		.map_err(|e| log::error!("failed to determine working directory: {}", e))?;
@@ -108,7 +130,7 @@ pub(crate) fn make_invoice(options: InvoiceOptions) -> Result<(), ()> {
 	});
 
 	// Read hour entries.
-	let hour_entries = read_uurlog(&file, Some(options.period))?;
+	let hour_entries = read_uurlog(&file, start_date, end_date)?;
 
 	// Split hour entries on tags that we care about.
 	let mut tagged_hour_entries = BTreeMap::new();

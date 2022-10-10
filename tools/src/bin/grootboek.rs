@@ -34,13 +34,13 @@ struct Options {
 	/// Only consider records from this date or later.
 	#[structopt(long)]
 	#[structopt(value_name = "YEAR[-MONTH[-DAY]]")]
-	#[structopt(conflicts_with = "during")]
+	#[structopt(conflicts_with = "period")]
 	start_date: Option<PartialDate>,
 
 	/// Only consider records from this date or earlier.
 	#[structopt(long)]
 	#[structopt(value_name = "YEAR[-MONTH[-DAY]]")]
-	#[structopt(conflicts_with = "during")]
+	#[structopt(conflicts_with = "period")]
 	end_date: Option<PartialDate>,
 }
 
