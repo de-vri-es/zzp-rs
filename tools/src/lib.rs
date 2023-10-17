@@ -243,11 +243,7 @@ impl ZzpConfig {
 
 	/// Parse a file as ZZP configuration.
 	pub fn read_file(path: impl AsRef<Path>) -> Result<Self, ReadFileError> {
-		let path = path.as_ref();
-		let bytes = std::fs::read(path)
-			.map_err(|e| ReadFileError::Io(path.into(), e))?;
-		Self::parse(&bytes)
-			.map_err(|e| ReadFileError::Toml(path.into(), e))
+		read_toml(path)
 	}
 }
 
@@ -278,17 +274,14 @@ impl CustomerConfig {
 
 	/// Parse a file as customer configuration.
 	pub fn read_file(path: impl AsRef<Path>) -> Result<Self, ReadFileError> {
-		let path = path.as_ref();
-		let bytes = std::fs::read(path)
-			.map_err(|e| ReadFileError::Io(path.into(), e))?;
-		Self::parse(&bytes)
-			.map_err(|e| ReadFileError::Toml(path.into(), e))
+		read_toml(path)
 	}
 }
 
 #[derive(Debug)]
 pub enum ReadFileError {
-	Io(PathBuf, std::io::Error),
+	Open(PathBuf, std::io::Error),
+	Read(PathBuf, std::io::Error),
 	Toml(PathBuf, toml::de::Error),
 }
 
@@ -296,8 +289,22 @@ impl std::error::Error for ReadFileError {}
 impl std::fmt::Display for ReadFileError {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		match self {
-			Self::Io(path, error) => write!(f, "failed to read {}: {}", path.display(), error),
+			Self::Open(path, error) => write!(f, "failed to open {} for reading: {}", path.display(), error),
+			Self::Read(path, error) => write!(f, "failed to read from {}: {}", path.display(), error),
 			Self::Toml(path, error) => write!(f, "failed to parse {}: {}", path.display(), error),
 		}
 	}
+}
+
+pub fn read_toml<T: serde::de::DeserializeOwned>(path: impl AsRef<Path>) -> Result<T, ReadFileError> {
+	use std::io::Read;
+
+	let path = path.as_ref();
+	let mut file = std::fs::File::open(path)
+		.map_err(|e| ReadFileError::Open(path.into(), e))?;
+	let mut bytes = Vec::new();
+	file.read_to_end(&mut bytes)
+		.map_err(|e| ReadFileError::Read(path.into(), e))?;
+	toml::from_slice(&bytes)
+		.map_err(|e| ReadFileError::Toml(path.into(), e))
 }

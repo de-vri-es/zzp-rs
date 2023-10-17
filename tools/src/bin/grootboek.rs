@@ -77,7 +77,7 @@ fn do_main(options: &Options) -> Result<(), String> {
 	if options.check {
 		let mut unbalanced_transactions = 0;
 		for (transaction, balance) in find_unbalanced(transactions) {
-			zzp_tools::grootboek::print_full(&transaction);
+			zzp_tools::grootboek::print_full_colored(&transaction);
 			println!("{prefix} {balance}",
 				prefix = Paint::red("Unbalanced amount:").bold(),
 				balance = color_cents(balance),

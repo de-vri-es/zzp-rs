@@ -6,13 +6,42 @@ use pdf_writer::{A4, BoxPosition, PdfWriter, Margins, mm, pt, MM_PER_PT};
 
 use crate::{ZzpConfig, Customer, DateLocalization};
 
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct InvoiceFile {
+	#[serde(rename = "Entry")]
+	pub entries: Vec<InvoiceEntry>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct InvoiceEntry {
+	#[serde(deserialize_with = "deserialize_date")]
 	pub date: Date,
 	pub description: String,
 	pub quantity: NotNan<f64>,
 	pub unit: String,
 	pub unit_price: NotNan<f64>,
 	pub vat_percentage: NotNan<f64>,
+}
+
+fn deserialize_date<'de, D: serde::de::Deserializer<'de>>(deserializer: D) -> Result<Date, D::Error> {
+	struct Visitor;
+
+	impl<'de> serde::de::Visitor<'de> for Visitor {
+		type Value = Date;
+
+		fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+			write!(formatter, "yyyy-mm-dd")
+		}
+
+		fn visit_str<E: serde::de::Error>(self, value: &str) -> Result<Self::Value, E> {
+			value.parse()
+				.map_err(|_| E::invalid_value(serde::de::Unexpected::Str(value), &"yyyy-mm-dd"))
+		}
+	}
+
+	deserializer.deserialize_str(Visitor)
 }
 
 impl InvoiceEntry {

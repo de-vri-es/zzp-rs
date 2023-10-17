@@ -80,8 +80,7 @@ fn init_logging(verbosity: i8) {
 		log::LevelFilter::Trace
 	};
 
-	let main_module = env!("CARGO_BIN_NAME").replace("-", "_");
-	env_logger::from_env("RUST_LOG").filter_module(&main_module, level).init();
+	env_logger::from_env("RUST_LOG").filter_module(module_path!(), level).init();
 }
 
 fn do_main(options: Options) -> Result<(), ()> {
