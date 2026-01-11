@@ -56,20 +56,14 @@ fn do_main(options: &Options) -> Result<(), String> {
 	let data = std::fs::read_to_string(&options.file).map_err(|e| format!("failed to read {:?}: {}", options.file, e))?;
 	let transactions = Transaction::parse_from_str(&data).map_err(|e| format!("{}", e))?;
 	let transactions = transactions.into_iter().filter(|transaction| {
-		if let Some(start_date) = &start_date {
-			if transaction.date < *start_date {
-				return false;
-			}
+		if let Some(start_date) = &start_date && transaction.date < *start_date {
+			return false;
 		}
-		if let Some(end_date) = &end_date {
-			if transaction.date >= *end_date {
-				return false;
-			}
+		if let Some(end_date) = &end_date && transaction.date >= *end_date {
+			return false;
 		}
-		if let Some(account) = &options.account {
-			if !transaction.mutates_account(account) {
-				return false;
-			}
+		if let Some(account) = &options.account && !transaction.mutates_account(account) {
+			return false;
 		}
 		true
 	});

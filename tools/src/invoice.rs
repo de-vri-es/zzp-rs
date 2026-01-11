@@ -25,6 +25,11 @@ pub struct InvoiceEntry {
 	pub vat_percentage: NotNan<f64>,
 }
 
+const fn not_nan(value: f64) -> NotNan<f64> {
+	assert!(!value.is_nan());
+	unsafe { NotNan::new_unchecked(value) }
+}
+
 fn deserialize_date<'de, D: serde::de::Deserializer<'de>>(deserializer: D) -> Result<Date, D::Error> {
 	struct Visitor;
 
@@ -50,11 +55,11 @@ impl InvoiceEntry {
 	}
 
 	pub fn total_vat_only(&self) -> NotNan<f64> {
-		self.quantity * self.unit_price * self.vat_percentage * 0.01
+		self.quantity * self.unit_price * self.vat_percentage * not_nan(0.01)
 	}
 
 	pub fn total_inc_vat(&self) -> NotNan<f64> {
-		self.quantity * self.unit_price * (self.vat_percentage * 0.01 + 1.0)
+		self.quantity * self.unit_price * (self.vat_percentage * not_nan(0.01) + not_nan(1.0))
 	}
 }
 
@@ -199,7 +204,7 @@ where
 		for entry in entries {
 			let price = entry.quantity * entry.unit_price;
 			total_ex_vat += price;
-			*totals_vat.entry(entry.vat_percentage).or_default() += price * entry.vat_percentage / 100.0;
+			*totals_vat.entry(entry.vat_percentage).or_default() += price * entry.vat_percentage / not_nan(100.0);
 
 			table.add_cell(&format_date(entry.date, &config.date_localization), &basic_right)?;
 			table.add_cell(&entry.description, &basic)?;

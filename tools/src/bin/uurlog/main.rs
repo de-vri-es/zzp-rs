@@ -80,7 +80,7 @@ fn init_logging(verbosity: i8) {
 		log::LevelFilter::Trace
 	};
 
-	env_logger::from_env("RUST_LOG").filter_module(module_path!(), level).init();
+	env_logger::Builder::from_default_env().filter_module(module_path!(), level).init();
 }
 
 fn do_main(options: Options) -> Result<(), ()> {

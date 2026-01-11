@@ -9,8 +9,7 @@ use super::types::Transaction;
 impl<'a> Transaction<'a> {
 	pub fn parse_from_str(data: &'a str) -> Result<Vec<Self>, ParseError<'a>> {
 		let mut lines = data.lines();
-		let mut output = Vec::new();
-		output.reserve((lines.size_hint().0 + 3) / 4);
+		let mut output = Vec::with_capacity(lines.size_hint().0.div_ceil(4));
 
 		while let Some(transaction) = Self::parse_from_lines(&mut lines)? {
 			output.push(transaction);
@@ -50,7 +49,7 @@ impl<'a> Transaction<'a> {
 		let mut tags = Vec::new();
 		let mut mutations = Vec::new();
 
-		while let Some(line) = lines.next() {
+		for line in lines {
 			let line = line.trim();
 			// Stop on empty line.
 			if line.is_empty() {
@@ -83,8 +82,8 @@ impl<'a> Tag<'a> {
 		let value = value.trim();
 
 		// Check that the label contains only allowed characters.
-		if label.chars().find(|c| !c.is_ascii_alphanumeric() && *c != '-').is_some() {
-			return Some(Err(InvalidLabel.for_token(label).into()));
+		if label.chars().any(|c| !c.is_ascii_alphanumeric() && c != '-') {
+			return Some(Err(InvalidLabel.for_token(label)));
 		}
 
 		Some(Ok(Self { label, value }))
@@ -137,6 +136,7 @@ pub struct ParseError<'a> {
 
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[allow(clippy::enum_variant_names, reason = "I disagree with you, clippy")]
 pub enum ParseErrorDetails {
 	InvalidTransactionHeader(InvalidTransactionHeaderDetails),
 	InvalidMutation(InvalidMutationDetails),
@@ -188,19 +188,19 @@ impl From<InvalidMutationDetails> for ParseErrorDetails {
 }
 
 impl InvalidTransactionHeaderDetails {
-	fn for_token(self, token: &str) -> ParseError {
+	fn for_token(self, token: &str) -> ParseError<'_> {
 		ParseError { details: self.into(), token }
 	}
 }
 
 impl InvalidTagDetails {
-	fn for_token(self, token: &str) -> ParseError {
+	fn for_token(self, token: &str) -> ParseError<'_> {
 		ParseError { details: self.into(), token }
 	}
 }
 
 impl InvalidMutationDetails {
-	fn for_token(self, token: &str) -> ParseError {
+	fn for_token(self, token: &str) -> ParseError<'_> {
 		ParseError { details: self.into(), token }
 	}
 }
