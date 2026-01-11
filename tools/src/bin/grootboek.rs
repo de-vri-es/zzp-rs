@@ -1,6 +1,4 @@
 use std::path::PathBuf;
-use structopt::StructOpt;
-use structopt::clap::AppSettings;
 use yansi::Paint;
 
 use zzp::partial_date::PartialDate;
@@ -9,38 +7,35 @@ use zzp::grootboek::Cents;
 use zzp::grootboek::Transaction;
 use zzp_tools::grootboek::color_cents;
 
-#[derive(StructOpt)]
-#[structopt(setting = AppSettings::ColoredHelp)]
-#[structopt(setting = AppSettings::UnifiedHelpMessage)]
-#[structopt(setting = AppSettings::DeriveDisplayOrder)]
+#[derive(clap::Parser)]
 struct Options {
 	/// The file to parse.
 	file: PathBuf,
 
 	/// Consider only transactions that mutate the given account or a sub-account.
-	#[structopt(long, short)]
-	#[structopt(value_name = "ACCOUNT")]
+	#[clap(long, short)]
+	#[clap(value_name = "ACCOUNT")]
 	account: Option<String>,
 
 	/// Check for unbalanced transactions.
-	#[structopt(long, short)]
+	#[clap(long, short)]
 	check: bool,
 
 	/// Limit records to this period.
-	#[structopt(long)]
-	#[structopt(value_name = "YEAR[-MONTH[-DAY]]")]
+	#[clap(long)]
+	#[clap(value_name = "YEAR[-MONTH[-DAY]]")]
 	period: Option<PartialDate>,
 
 	/// Only consider records from this date or later.
-	#[structopt(long)]
-	#[structopt(value_name = "YEAR[-MONTH[-DAY]]")]
-	#[structopt(conflicts_with = "period")]
+	#[clap(long)]
+	#[clap(value_name = "YEAR[-MONTH[-DAY]]")]
+	#[clap(conflicts_with = "period")]
 	start_date: Option<PartialDate>,
 
 	/// Only consider records from this date or earlier.
-	#[structopt(long)]
-	#[structopt(value_name = "YEAR[-MONTH[-DAY]]")]
-	#[structopt(conflicts_with = "period")]
+	#[clap(long)]
+	#[clap(value_name = "YEAR[-MONTH[-DAY]]")]
+	#[clap(conflicts_with = "period")]
 	end_date: Option<PartialDate>,
 }
 
@@ -99,7 +94,7 @@ fn do_main(options: &Options) -> Result<(), String> {
 }
 
 fn main() {
-	if let Err(error) = do_main(&Options::from_args()) {
+	if let Err(error) = do_main(&clap::Parser::parse()) {
 		eprintln!("Error: {}", error);
 		std::process::exit(1);
 	}

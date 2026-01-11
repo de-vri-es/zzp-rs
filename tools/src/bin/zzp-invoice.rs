@@ -2,56 +2,48 @@ use dynfmt::{Format, SimpleCurlyFormat};
 use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use structopt::StructOpt;
-use structopt::clap;
 use zzp_tools::invoice::InvoiceFile;
 
 use zzp::gregorian::Date;
 use zzp_tools::{CustomerConfig, ZzpConfig};
 
-#[derive(StructOpt)]
-#[structopt(setting = clap::AppSettings::DeriveDisplayOrder)]
-#[structopt(setting = clap::AppSettings::UnifiedHelpMessage)]
-#[structopt(setting = clap::AppSettings::ColoredHelp)]
+#[derive(clap::Parser)]
 pub struct Options {
-	#[structopt(long, short)]
-	#[structopt(parse(from_occurrences))]
-	#[structopt(global = true)]
-	verbose: i8,
+	#[clap(long, short)]
+	#[clap(action = clap::ArgAction::Count)]
+	#[clap(global = true)]
+	verbose: u8,
 
 	/// The invoice number to use.
-	#[structopt(long)]
+	#[clap(long)]
 	number: String,
 
 	/// The file with hour log entries.
-	#[structopt(long, short)]
-	#[structopt(value_name = "FILE")]
+	#[clap(long, short)]
+	#[clap(value_name = "FILE")]
 	input: PathBuf,
 
 	/// Write the generated invoice to this path instead of the default.
-	#[structopt(long, short)]
-	#[structopt(value_name = "FILE")]
+	#[clap(long, short)]
+	#[clap(value_name = "FILE")]
 	output: Option<PathBuf>,
 
 	/// Overwrite the output file if it exists.
-	#[structopt(long)]
+	#[clap(long)]
 	overwrite: bool,
 
 	/// The date to use for the invoice instead of today.
-	#[structopt(long)]
-	#[structopt(value_name = "YYYY-MM-DD")]
+	#[clap(long)]
+	#[clap(value_name = "YYYY-MM-DD")]
 	date: Option<Date>,
 
 	/// Do not automatically add the invoice to the grootboek.
-	#[structopt(long)]
+	#[clap(long)]
 	skip_grootboek: bool,
 }
 
 fn main() {
-	let options = Options::from_args();
-	init_logging(options.verbose);
-
-	if do_main(options).is_err() {
+	if let Err(()) = do_main(clap::Parser::parse()) {
 		std::process::exit(1);
 	}
 }
@@ -73,6 +65,8 @@ fn init_logging(verbosity: i8) {
 }
 
 fn do_main(options: Options) -> Result<(), ()> {
+	init_logging(options.verbose.try_into().unwrap_or(i8::MAX));
+
 	// Find configuration files.
 	let current_dir = std::env::current_dir()
 		.map_err(|e| log::error!("failed to determine working directory: {}", e))?;

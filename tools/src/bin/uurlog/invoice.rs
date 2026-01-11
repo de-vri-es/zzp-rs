@@ -4,96 +4,91 @@ use zzp_tools::invoice::InvoiceFile;
 use std::collections::{btree_map, BTreeMap};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use structopt::StructOpt;
-use structopt::clap;
 use super::read_uurlog;
 
 use zzp::gregorian::Date;
 use zzp::partial_date::PartialDate;
 use zzp_tools::{CustomerConfig, ZzpConfig};
 
-#[derive(StructOpt)]
-#[structopt(setting = clap::AppSettings::DeriveDisplayOrder)]
-#[structopt(setting = clap::AppSettings::UnifiedHelpMessage)]
-#[structopt(setting = clap::AppSettings::ColoredHelp)]
+#[derive(clap::Args)]
 pub struct InvoiceOptions {
 	/// The period to create an invoice for.
-	#[structopt(long)]
-	#[structopt(value_name = "YYYY[-MM[-DD]]")]
-	#[structopt(group = "period-group")]
+	#[clap(long)]
+	#[clap(value_name = "YYYY[-MM[-DD]]")]
+	#[clap(group = "period-group")]
 	period: Option<PartialDate>,
 
 	/// Only consider hour entries from this date or later.
-	#[structopt(long)]
-	#[structopt(value_name = "YEAR[-MONTH[-DAY]]")]
-	#[structopt(group = "period-group")]
+	#[clap(long)]
+	#[clap(value_name = "YEAR[-MONTH[-DAY]]")]
+	#[clap(group = "period-group")]
 	start_date: Option<PartialDate>,
 
 	/// Only consider hour entries from this date or earlier.
-	#[structopt(long)]
-	#[structopt(value_name = "YEAR[-MONTH[-DAY]]")]
-	#[structopt(conflicts_with = "period")]
-	#[structopt(requires = "start-date")]
+	#[clap(long)]
+	#[clap(value_name = "YEAR[-MONTH[-DAY]]")]
+	#[clap(conflicts_with = "period")]
+	#[clap(requires = "start-date")]
 	end_date: Option<PartialDate>,
 
 	/// The invoice number to use.
-	#[structopt(long)]
+	#[clap(long)]
 	number: String,
 
 	/// The file with hour log entries.
-	#[structopt(long, short)]
-	#[structopt(value_name = "FILE")]
+	#[clap(long, short)]
+	#[clap(value_name = "FILE")]
 	hours: Option<PathBuf>,
 
 	/// Add extra entries to the invoice from a file.
-	#[structopt(long)]
-	#[structopt(value_name = "FILE.toml")]
+	#[clap(long)]
+	#[clap(value_name = "FILE.toml")]
 	extra_entries: Option<PathBuf>,
 
 	/// Write the generated invoice to this path instead of the default.
-	#[structopt(long, short)]
-	#[structopt(value_name = "FILE")]
+	#[clap(long, short)]
+	#[clap(value_name = "FILE")]
 	output: Option<PathBuf>,
 
 	/// Overwrite the output file if it exists.
-	#[structopt(long)]
+	#[clap(long)]
 	overwrite: bool,
 
 	/// The date to use for the invoice instead of today.
-	#[structopt(long)]
-	#[structopt(value_name = "YYYY-MM-DD")]
+	#[clap(long)]
+	#[clap(value_name = "YYYY-MM-DD")]
 	date: Option<Date>,
 
 	/// Add a single invoice entry per day with the given summary.
 	///
 	/// Note that entries with tags will be excluded from the summary.
-	#[structopt(long)]
-	#[structopt(group = "summarize")]
+	#[clap(long)]
+	#[clap(group = "summarize")]
 	summarize_days: Option<String>,
 
 	/// Add a single invoice entry for the entire invoice with the given summary.
 	///
 	/// Note that entries with tags will be excluded from the summary.
-	#[structopt(long)]
-	#[structopt(group = "summarize")]
+	#[clap(long)]
+	#[clap(group = "summarize")]
 	summarize_all: Option<String>,
 
 	/// The unit to display for time log entries on the invoice.
-	#[structopt(long)]
+	#[clap(long)]
 	unit: Option<String>,
 
 	/// The price per hour.
-	#[structopt(long)]
-	#[structopt(value_name = "CENTS")]
+	#[clap(long)]
+	#[clap(value_name = "CENTS")]
 	price_per_hour: Option<NotNan<f64>>,
 
 	/// The VAT percentage.
-	#[structopt(long)]
-	#[structopt(value_name = "PERCENTAGE")]
+	#[clap(long)]
+	#[clap(value_name = "PERCENTAGE")]
 	vat: Option<NotNan<f64>>,
 
 	/// Do not automatically add the invoice to the grootboek.
-	#[structopt(long)]
+	#[clap(long)]
 	skip_grootboek: bool,
 }
 
