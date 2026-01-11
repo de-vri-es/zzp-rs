@@ -11,13 +11,9 @@ categories = ["command-line-utilities"]
 edition = "2024"
 
 [dependencies]
-cairo-rs = { version = "0.9.1", features = ["pdf"] }
 env_logger = "0.7.1"
-liquid = "0.21.4"
 log = "0.4.8"
 ordered-float = { version = "2.1.1", features = ["serde"] }
-pango = "0.9.1"
-pangocairo = "0.10.0"
 pdf-writer = { git = "https://github.com/de-vri-es/pdf-writer-rs", branch = "main" }
 dynfmt = { version = "0.1.5", features = ["curly"] }
 serde = { version = "1.0.121", features = ["derive"] }
