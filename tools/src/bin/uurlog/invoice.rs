@@ -65,8 +65,18 @@ pub struct InvoiceOptions {
 	date: Option<Date>,
 
 	/// Add a single invoice entry per day with the given summary.
+	///
+	/// Note that entries with tags will be excluded from the summary.
 	#[structopt(long)]
+	#[structopt(group = "summarize")]
 	summarize_days: Option<String>,
+
+	/// Add a single invoice entry for the entire invoice with the given summary.
+	///
+	/// Note that entries with tags will be excluded from the summary.
+	#[structopt(long)]
+	#[structopt(group = "summarize")]
+	summarize_all: Option<String>,
 
 	/// The unit to display for time log entries on the invoice.
 	#[structopt(long)]
@@ -118,9 +128,19 @@ pub(crate) fn make_invoice(options: InvoiceOptions) -> Result<(), ()> {
 	let unit = options.unit.as_deref().unwrap_or(&zzp_config.invoice_localization.hours);
 	let unit_price = options.price_per_hour.unwrap_or(customer_config.invoice.price_per_hour);
 	let vat_percentage = options.vat.unwrap_or(zzp_config.tax.vat);
-	let summarize_days = options.summarize_days
-		.as_deref()
-		.or(customer_config.invoice.summarize_per_day.as_deref());
+	let summarize_untagged = if let Some(description) = options.summarize_days {
+		Some(zzp_tools::SummerizeConfig {
+			description,
+			period: zzp_tools::SummerizePeriod::Day,
+		})
+	} else if let Some(description) = options.summarize_all {
+		Some(zzp_tools::SummerizeConfig {
+			description,
+			period: zzp_tools::SummerizePeriod::Invoice,
+		})
+	} else {
+		customer_config.invoice.summarize.clone()
+	};
 
 	let args: std::collections::BTreeMap<_, _> = [
 		("year", date.year().to_string()),
@@ -152,15 +172,22 @@ pub(crate) fn make_invoice(options: InvoiceOptions) -> Result<(), ()> {
 		tagged_hour_entries.insert(tag.name.as_str(), Vec::new());
 	}
 
-	'entries:
-	for entry in hour_entries {
+	for entry in &hour_entries {
+		let mut matched = None;
 		for tag in &entry.tags {
 			if let Some(tagged_entries) = tagged_hour_entries.get_mut(tag.as_str()) {
-				tagged_entries.push(entry);
-				continue 'entries;
+				if let Some(old_tag) = &matched {
+					log::error!("Multiple important tags found for entry {}: it has both the {} and {} tags", entry.date, old_tag, tag);
+					return Err(());
+				} else {
+					tagged_entries.push(entry.clone());
+					matched = Some(tag.as_str());
+				}
 			}
 		}
-		untagged_hour_entries.push(entry);
+		if matched.is_none() {
+			untagged_hour_entries.push(entry.clone());
+		}
 	}
 
 	let mut invoice_entries = Vec::new();
@@ -178,10 +205,12 @@ pub(crate) fn make_invoice(options: InvoiceOptions) -> Result<(), ()> {
 		.to_string();
 
 	// Summarize entries per day, if requested.
-	let untagged_hour_entries = if let Some(description) = summarize_days {
-		summarize_hours_per_day(untagged_hour_entries, description)
-	} else {
-		untagged_hour_entries
+	let untagged_hour_entries = match &summarize_untagged {
+		None => untagged_hour_entries.clone(),
+		Some(config) => match config.period {
+			zzp_tools::SummerizePeriod::Day => summarize_hours_per_day(untagged_hour_entries, &config.description),
+			zzp_tools::SummerizePeriod::Invoice => summarize_hours_per_invoice(untagged_hour_entries, &config.description, date).into_iter().collect(),
+		}
 	};
 
 	invoice_entries.extend(untagged_hour_entries.into_iter().map(|entry| {
@@ -196,10 +225,13 @@ pub(crate) fn make_invoice(options: InvoiceOptions) -> Result<(), ()> {
 	}));
 
 	for tag in &customer_config.tag {
-		let hour_entries = if let Some(description) = &tag.summarize_per_day {
-			summarize_hours_per_day(tagged_hour_entries.get(tag.name.as_str()).unwrap(), description)
-		} else {
-			tagged_hour_entries.get(tag.name.as_str()).unwrap().clone()
+		let entries = tagged_hour_entries.get(tag.name.as_str()).unwrap();
+		let hour_entries = match &tag.summarize {
+			None => entries.clone(),
+			Some(config) => match config.period {
+				zzp_tools::SummerizePeriod::Day => summarize_hours_per_day(entries.clone(), &config.description),
+				zzp_tools::SummerizePeriod::Invoice => summarize_hours_per_invoice(entries.clone(), &config.description, date).into_iter().collect(),
+			}
 		};
 		invoice_entries.extend(hour_entries.into_iter().map(|entry| {
 			zzp_tools::invoice::InvoiceEntry {
@@ -329,6 +361,30 @@ pub(crate) fn make_invoice(options: InvoiceOptions) -> Result<(), ()> {
 	}
 
 	Ok(())
+}
+
+fn summarize_hours_per_invoice<I>(entries: I, description: &str, date: Date) -> Option<zzp::uurlog::Entry>
+where
+	I: IntoIterator,
+	I::Item: std::borrow::Borrow<zzp::uurlog::Entry>,
+{
+	use std::borrow::Borrow;
+	let mut summarized = zzp::uurlog::Entry {
+		date,
+		hours: zzp::uurlog::Hours::from_minutes(0),
+		tags: Vec::new(),
+		description: description.into(),
+	};
+	for entry in entries {
+		let entry = entry.borrow();
+		summarized.hours += entry.hours;
+	}
+
+	if summarized.hours.total_minutes() > 0 {
+		Some(summarized)
+	} else {
+		None
+	}
 }
 
 fn summarize_hours_per_day<I>(entries: I, description: &str) -> Vec<zzp::uurlog::Entry>

@@ -129,25 +129,43 @@ pub struct CustomerInvoice {
 	/// The price per hour in money units (euro, yen, dollar, ...).
 	pub price_per_hour: NotNan<f64>,
 
-	/// Summarize all hours per day with a single entry.
-	pub summarize_per_day: Option<String>,
+	/// Summarize hours.
+	pub summarize: Option<SummerizeConfig>,
 }
 
-	/// Details on tags for hour entries related to invoicing.
+/// Details on tags for hour entries related to invoicing.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct TagConfig {
-	/// Thename of the tag.
+	/// The name of the tag.
 	pub name: String,
 
 	/// The price per hour in money units (euro, yen, dollar, ...).
 	pub price_per_hour: Option<NotNan<f64>>,
 
-	/// Summarize all hours per day with a single entry.
-	pub summarize_per_day: Option<String>,
+	/// Summarize hours matching the tag.
+	pub summarize: Option<SummerizeConfig>,
 
 	/// VAT percentage for tagged entries.
 	pub vat: Option<NotNan<f64>>,
+}
+
+/// Details on tags for hour entries related to invoicing.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct SummerizeConfig {
+	/// The description for the invoice entry of the summary.
+	pub description: String,
+
+	/// The period in which to summerize matching entries.
+	pub period: SummerizePeriod,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum SummerizePeriod {
+	Day,
+	Invoice,
 }
 
 /// Localizaton details for invoices.
