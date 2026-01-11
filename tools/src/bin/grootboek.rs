@@ -37,6 +37,21 @@ struct Options {
 	#[clap(value_name = "YEAR[-MONTH[-DAY]]")]
 	#[clap(conflicts_with = "period")]
 	end_date: Option<PartialDate>,
+
+	/// Change the output format.
+	#[clap(long, short)]
+	#[clap(default_value = "tree")]
+	format: Format,
+
+	/// Do not print empty accounts (with a balance of 0.00).
+	#[clap(long, short)]
+	skip_empty_accounts: bool,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, clap::ValueEnum)]
+enum Format {
+	Tree,
+	Raw,
 }
 
 fn do_main(options: &Options) -> Result<(), String> {
@@ -83,7 +98,7 @@ fn do_main(options: &Options) -> Result<(), String> {
 
 	} else {
 		let totals = compute_totals(transactions);
-		print_totals(&totals);
+		print_totals(&totals, options.format, options.skip_empty_accounts);
 		Ok(())
 	}
 
@@ -100,53 +115,58 @@ fn main() {
 	}
 }
 
-struct Tree<'a, T> {
-	root: Node<'a, T>,
+struct Tree<'a> {
+	root: Node<'a>,
 }
 
-struct Node<'a, T> {
+struct Node<'a> {
 	account: Account<'a>,
-	data: T,
-	children: Vec<Node<'a, T>>,
+	balance: Cents,
+	cumulative_balance: Cents,
+	children: Vec<Node<'a>>,
 }
 
-impl<'a, T> Tree<'a, T> {
-	fn new(root_data: T) -> Self {
+impl<'a> Tree<'a> {
+	fn new() -> Self {
 		Self {
-			root: Node::new(Account::from_raw(""), root_data),
+			root: Node::new(Account::from_raw("")),
 		}
 	}
 
-	fn insert(&mut self, account: Account<'a>, update: impl Fn(&mut T), initial_data: T)
-	where
-		T: Clone
-	{
-		update(&mut self.root.data);
+	fn add_balance(&mut self, account: Account<'a>, amount: Cents) {
+		self.root.cumulative_balance += amount;
 		let mut current = &mut self.root;
-		for account in account.walk_nodes() {
-			if let Some(x) = current.children.iter().position(|x| x.account == account) {
+		for node in account.walk_nodes() {
+			if let Some(x) = current.children.iter().position(|x| x.account == node) {
 				current = &mut current.children[x];
 			} else {
-				current.children.push(Node::new(account, initial_data.clone()));
+				current.children.push(Node::new(node));
 				current = current.children.last_mut().unwrap();
 			}
-			update(&mut current.data);
+			current.cumulative_balance += amount;
+			if node == account {
+				current.balance += amount;
+			}
 		}
 	}
 }
 
-impl<'a, T> Node<'a, T> {
-	fn new(account: Account<'a>, data: T) -> Self {
-		Self { account, data, children: Vec::new() }
+impl<'a> Node<'a> {
+	fn new(account: Account<'a>) -> Self {
+		Self {
+			account,
+			balance: Cents(0),
+			cumulative_balance: Cents(0),
+			children: Vec::new() }
 	}
 }
 
-fn compute_totals<'a>(transactions: impl IntoIterator<Item = Transaction<'a>>) -> Tree<'a, Cents> {
-	let mut root = Tree::new(Cents(0));
+fn compute_totals<'a>(transactions: impl IntoIterator<Item = Transaction<'a>>) -> Tree<'a> {
+	let mut root = Tree::new();
 
 	for transaction in transactions {
 		for mutation in &transaction.mutations {
-			root.insert(mutation.account, |x| *x += mutation.amount, Cents(0));
+			root.add_balance(mutation.account, mutation.amount);
 		}
 	}
 
@@ -164,20 +184,31 @@ fn find_unbalanced<'a>(transactions: impl IntoIterator<Item = Transaction<'a>>) 
 	})
 }
 
-fn print_totals(totals: &Tree<Cents>) {
-	println!("Total: {}", color_cents(totals.root.data));
-	print_totals_subtree(&totals.root, "");
+fn print_totals(totals: &Tree, format: Format, skip_empty: bool) {
+	if format != Format::Raw {
+		println!("Total: {}", color_cents(totals.root.cumulative_balance));
+	}
+	print_totals_subtree(&totals.root, format, skip_empty, "");
 }
 
-fn print_totals_subtree(node: &Node<Cents>, indent: &str) {
+fn print_totals_subtree(node: &Node, format: Format, skip_empty: bool, indent: &str) {
 	for (i, child) in node.children.iter().enumerate() {
-		let (tree_char, subindent) = if i == node.children.len() - 1 {
-			("└─", "   ")
-		} else {
-			("├─", "│  ")
-		};
-
-		println!("{}{} {}: {}", indent, tree_char, child.account.name(), color_cents(child.data));
-		print_totals_subtree(child, &format!("{}{}", indent, subindent));
+		match format {
+			Format::Tree => {
+				let (tree_char, subindent) = if i == node.children.len() - 1 {
+					("└─", "   ")
+				} else {
+					("├─", "│  ")
+				};
+				println!("{}{} {}: {}", indent, tree_char, child.account.name(), color_cents(child.cumulative_balance));
+				print_totals_subtree(child, format, skip_empty, &format!("{}{}", indent, subindent));
+			},
+			Format::Raw => {
+				if !skip_empty || child.balance != Cents(0) {
+					println!("{} {}", color_cents(child.balance), child.account.raw);
+				}
+				print_totals_subtree(child, format, skip_empty, "");
+			}
+		}
 	}
 }
