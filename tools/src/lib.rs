@@ -111,6 +111,17 @@ pub struct Invoice {
 
 	/// The tag to use to link the invoice file to a transaction.
 	pub grootboek_tag: String,
+
+	/// The next invoice sequence number to use.
+	///
+	/// Must be used as `{invoice_sequence_number}` in the `invoice_number_format` template.
+	pub next_sequence_number: u64,
+
+	/// Pad the sequence_number with zeroes to a mininimum amount of digits.
+	pub sequence_number_padding: usize,
+
+	/// Formatting template for the invoice number.
+	pub invoice_number_format: String,
 }
 
 /// Customer details.

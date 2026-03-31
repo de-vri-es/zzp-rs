@@ -1,5 +1,5 @@
 use ordered_float::NotNan;
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, path::Path};
 use zzp::gregorian::{Date, Month};
 
 use pdf_writer::{A4, BoxPosition, PdfWriter, Margins, mm, pt, MM_PER_PT};
@@ -275,4 +275,38 @@ fn format_month(month: Month, localization: &DateLocalization) -> &str {
 		Month::November => &localization.november,
 		Month::December => &localization.december,
 	}
+}
+
+#[allow(clippy::result_unit_err)]
+pub fn update_config_next_invoice_sequence_number(config_file: &Path, sequence_number: u64) -> Result<(), ()> {
+	use std::io::Read;
+	use std::io::Write;
+
+	let mut file = std::fs::OpenOptions::new()
+		.read(true)
+		.write(true)
+		.open(config_file)
+		.map_err(|e| log::error!("{}: failed to open file for reading and writing: {e}", config_file.display()))?;
+	let mut buffer = Vec::new();
+	file.read_to_end(&mut buffer)
+		.map_err(|e| log::error!("{}: failed to read from file: {e}", config_file.display()))?;
+	let string = std::str::from_utf8(&buffer)
+		.map_err(|_| log::error!("{}: file contains invalid UTF-8", config_file.display()))?;
+
+	let mut document: toml_edit::DocumentMut = string.parse()
+		.map_err(|e| log::error!("{}: failed to parse: {e}", config_file.display()))?;
+	let value = document.get_mut("Invoice")
+		.and_then(|x| x.get_mut("next_sequence_number"))
+		.ok_or_else(|| log::error!("{}: no Invoice.next_sequence_number value found", config_file.display()))?;
+	*value = toml_edit::value(sequence_number as i64);
+
+	let buffer = document.to_string();
+	file.set_len(0)
+		.map_err(|e| log::error!("{}: failed to truncate file: {e}", config_file.display()))?;
+	std::io::Seek::rewind(&mut file)
+		.map_err(|e| log::error!("{}: failed to rewind file cursor: {e}", config_file.display()))?;
+	file.write_all(buffer.as_bytes())
+		.map_err(|e| log::error!("{}: failed to write updated config: {e}", config_file.display()))?;
+
+	Ok(())
 }

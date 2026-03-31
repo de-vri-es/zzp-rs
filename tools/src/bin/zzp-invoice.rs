@@ -14,10 +14,6 @@ pub struct Options {
 	#[clap(global = true)]
 	verbose: u8,
 
-	/// The invoice number to use.
-	#[clap(long)]
-	number: String,
-
 	/// The file with hour log entries.
 	#[clap(long, short)]
 	#[clap(value_name = "FILE")]
@@ -36,6 +32,16 @@ pub struct Options {
 	#[clap(long)]
 	#[clap(value_name = "YYYY-MM-DD")]
 	date: Option<Date>,
+
+	/// Manually specify the invoice number to use.
+	///
+	/// Will be used to store the next invoice number unless --no-save-invoice-number is specified.
+	#[clap(long)]
+	number: Option<u64>,
+
+	/// Do not update the next invoice number in the config.
+	#[clap(long)]
+	no_save_invoice_number: bool,
 
 	/// Do not automatically add the invoice to the grootboek.
 	#[clap(long)]
@@ -84,11 +90,26 @@ fn do_main(options: Options) -> Result<(), ()> {
 
 	// Consolidate command line options with config files.
 	let date = options.date.unwrap_or_else(Date::today);
+	let invoice_sequence_number = options.number.unwrap_or(zzp_config.invoice.next_sequence_number);
+
+	let quarter;
+	if date.month() >= zzp::gregorian::October {
+		quarter = 4;
+	} else if date.month() >= zzp::gregorian::July {
+		quarter = 3;
+	} else if date.month() >= zzp::gregorian::April {
+		quarter = 2;
+	} else {
+		quarter = 1;
+	}
 
 	let args: std::collections::BTreeMap<_, _> = [
 		("year", date.year().to_string()),
 		("month", format!("{:02}", date.month().to_number())),
 		("day", format!("{:02}", date.day())),
+		("quarter", quarter.to_string()),
+		("debitor", customer_config.customer.grootboek_name.clone()),
+		("invoice_sequence_number", format!("{invoice_sequence_number:0$}", zzp_config.invoice.sequence_number_padding)),
 	].into_iter().collect();
 
 	let grootboek_path = SimpleCurlyFormat.format(&zzp_config.grootboek.path, &args)
@@ -99,10 +120,13 @@ fn do_main(options: Options) -> Result<(), ()> {
 
 	let invoice_directory = SimpleCurlyFormat.format(&zzp_config.invoice.directory, &args)
 		.map_err(|e| log::error!("failed to expand invoice directory: {}", e))?;
+	let invoice_number = SimpleCurlyFormat.format(&zzp_config.invoice.invoice_number_format, &args)
+		.map_err(|e| log::error!("failed to expand invoice number: {}", e))?;
+
 	let output = options.output
 		.map(|path| current_dir.join(path))
 		.unwrap_or_else(|| {
-		generate_invoice_file_name(root_dir.join(&*invoice_directory), &options.number, &zzp_config)
+		generate_invoice_file_name(root_dir.join(&*invoice_directory), &invoice_number, &zzp_config)
 	});
 
 	// Read invoice entries.
@@ -117,16 +141,6 @@ fn do_main(options: Options) -> Result<(), ()> {
 		.display()
 		.to_string();
 
-	let quarter;
-	if date.month() >= zzp::gregorian::October {
-		quarter = 4;
-	} else if date.month() >= zzp::gregorian::July {
-		quarter = 3;
-	} else if date.month() >= zzp::gregorian::April {
-		quarter = 2;
-	} else {
-		quarter = 1;
-	}
 
 	let format_args: BTreeMap<_, _> = [
 		("year", date.year().to_string()),
@@ -134,7 +148,7 @@ fn do_main(options: Options) -> Result<(), ()> {
 		("day", format!("{:02}", date.day())),
 		("quarter", quarter.to_string()),
 		("debitor", customer_config.customer.grootboek_name.clone()),
-		("invoice_number", options.number.clone()),
+		("invoice_number", invoice_number.clone().into_owned()),
 	].into_iter().collect();
 
 	let mut total_ex_vat = 0.0;
@@ -211,7 +225,7 @@ fn do_main(options: Options) -> Result<(), ()> {
 		file,
 		&zzp_config,
 		&customer_config.customer,
-		&options.number,
+		&invoice_number,
 		date,
 		&invoice.entries,
 	)
@@ -228,6 +242,10 @@ fn do_main(options: Options) -> Result<(), ()> {
 			.map_err(|e| log::error!("failed to write to {}: {}", grootboek_path.display(), e))?;
 		zzp_tools::grootboek::write_full(&mut grootboek_file, &grootboek_entry)
 			.map_err(|e| log::error!("failed to write to {}: {}", grootboek_path.display(), e))?;
+	}
+
+	if !options.no_save_invoice_number {
+		zzp_tools::invoice::update_config_next_invoice_sequence_number(&zzp_config_path, invoice_sequence_number + 1)?;
 	}
 
 	Ok(())
